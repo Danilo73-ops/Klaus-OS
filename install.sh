@@ -51,13 +51,18 @@ if printf '%s\n' "$ids" | grep -qx 1; then PRIMARY=1; fi
 panel="/panels/panel-$PRIMARY"
 log 'Montando barra de tarefas inferior estilo PC...'
 setting xfce4-panel "$panel/position" string 'p=12;x=0;y=0'
-setting xfce4-panel "$panel/size" int 42
+setting xfce4-panel "$panel/size" int 50
+setting xfce4-panel "$panel/icon-size" int 27
+setting xfce4-panel "$panel/nrows" int 1
 setting xfce4-panel "$panel/length" int 100
 setting xfce4-panel "$panel/length-adjust" bool false
 setting xfce4-panel "$panel/position-locked" bool true
 setting xfce4-panel "$panel/autohide-behavior" int 0
-setting xfce4-panel "$panel/background-style" int 1
-setting xfce4-panel "$panel/background-alpha" int 92
+# Fundo escuro próprio do painel, independente do tema GTK.
+setting xfce4-panel /panels/dark-mode bool true
+setting xfce4-panel "$panel/background-style" int 2
+xfconf-query -c xfce4-panel -p "$panel/background-rgba" -r >/dev/null 2>&1 || true
+xfconf-query -c xfce4-panel -p "$panel/background-rgba" -n -a   -t double -s 0.025 -t double -s 0.055   -t double -s 0.105 -t double -s 0.98 >/dev/null
 
 if command -v pkg >/dev/null && ! dpkg -s xfce4-whiskermenu-plugin 2>/dev/null | grep -q 'Status: install ok installed'; then
   log 'Tentando instalar o menu Iniciar Whisker...'
@@ -82,6 +87,9 @@ for p in $main; do
   if test "$kind" = applicationsmenu && test "$whisker" = true; then
     xfconf-query -c xfce4-panel -p "/plugins/plugin-$p" -s whiskermenu >/dev/null || true
   fi
+  # O pager (troca de workspaces) é responsável pelos blocos cinza gigantes.
+  # Preservamos os IDs originais no backup, mas não o exibimos na barra.
+  case "$kind" in pager) continue ;; esac
   new="$new $p"
   case "$kind" in applicationsmenu|whiskermenu) new="$new $pins" ;; esac
 done
@@ -102,13 +110,31 @@ setting xsettings /Xft/HintStyle string hintslight
 WALL_DIR="$DATA/wallpapers"
 mkdir -p "$WALL_DIR"
 cp -f "$ROOT/assets/klaus-night.svg" "$WALL_DIR/klaus-night.svg"
-wall_props="$(xfconf-query -c xfce4-desktop -p /backdrop -l 2>/dev/null | grep '/last-image$' || true)"
-test -n "$wall_props" || wall_props='/backdrop/screen0/monitor0/workspace0/last-image'
-for prop in $wall_props; do
-  setting xfce4-desktop "$prop" string "$WALL_DIR/klaus-night.svg"
-  setting xfce4-desktop "$(dirname "$prop")/image-style" int 5
+# Wallpaper no workspace ativo e nos demais; XFCE pode usar nomes distintos de monitor.
+# Usa o prefixo real das propriedades já registradas pelo xfdesktop.
+wall_props="$(xfconf-query -c xfce4-desktop -p /backdrop -l 2>/dev/null | grep -E '/(last-image|image-path)
+log 'Klaus OS V1 aplicado. Confira no Termux:X11.'
+log "Backup: $BACKUP"
+ || true)"
+bases="$(printf '%s\n' "$wall_props" | sed -nE 's@/(last-image|image-path)$@@p' | sort -u)"
+for common in /backdrop/screen0/monitor0/workspace0 /backdrop/screen0/monitor0; do
+  bases="$(printf '%s\n%s\n' "$bases" "$common")"
+done
+for base in $(printf '%s\n' "$bases" | sort -u); do
+  test -n "$base" || continue
+  setting xfce4-desktop "$base/last-image" string "$WALL_DIR/klaus-night.svg"
+  setting xfce4-desktop "$base/image-style" int 5
+  setting xfce4-desktop "$base/image-show" bool true
+done
+# Assegurar que áreas de trabalho não configuradas também tenham a imagem.
+for mon in $(printf '%s\n' "$bases" | sed -nE 's@(/backdrop/screen[0-9]+/monitor[^/]+)(/workspace[0-9]+)?$@\1@p' | sort -u); do
+  for desk in 0 1 2 3; do
+    setting xfce4-desktop "$mon/workspace$desk/last-image" string "$WALL_DIR/klaus-night.svg"
+    setting xfce4-desktop "$mon/workspace$desk/image-style" int 5
+  done
 done
 xfce4-panel -r >/dev/null 2>&1 || log 'Reabra o XFCE se a barra não atualizar.'
 xfdesktop --reload >/dev/null 2>&1 || true
+log 'Wallpaper definido para o(s) monitor(es) configurado(s).'
 log 'Klaus OS V1 aplicado. Confira no Termux:X11.'
 log "Backup: $BACKUP"
