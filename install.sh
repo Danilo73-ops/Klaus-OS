@@ -187,14 +187,35 @@ WALL="$WALL_DIR/klaus-os-11.png"
 log 'Gerando wallpaper 1600x720 em PNG...'
 python3 "$ROOT/scripts/wallpaper.py" "$WALL"
 test -s "$WALL" || fail 'Falha ao gerar wallpaper PNG.'
-# Descobre os nomes reais dos monitores do XFCE; nao usa somente monitor0.
-props="$(xfconf-query -c xfce4-desktop -p /backdrop -l 2>/dev/null | grep -E '/(last-image|image-path|image-style)$' || true)"
-bases="$(printf '%s\n' "$props" | sed -nE 's@/(last-image|image-path|image-style)$@@p' | sort -u)"
-test -n "$bases" || bases='/backdrop/screen0/monitor0/workspace0'
-for base in $bases; do
-  setting xfce4-desktop "$base/last-image" string "$WALL"
-  setting xfce4-desktop "$base/image-style" int 5
+# Identifica o monitor real X11 e os nomes GDK usados pelo xfdesktop 4.20.
+# No Termux:X11, pode ser monitorDexDisplay em vez de monitor0.
+log 'Detectando os monitores XFCE e X11 antes de aplicar o fundo...'
+props="$(xfconf-query -c xfce4-desktop -lv 2>/dev/null | awk '{print $1}' || true)"
+monitors="$(printf '%s\n' "$props" | sed -nE 's@^(/backdrop/screen[0-9]+/monitor[^/]+)(/.*)?$@\1@p' | sort -u)"
+if command -v xrandr >/dev/null 2>&1; then
+  outputs="$(xrandr --query 2>/dev/null | awk '$2 == "connected" { print $1 }' || true)"
+  for output in $outputs; do
+    safe="$(printf '%s' "$output" | tr -d '[:space:]')"
+    monitors="$(printf '%s\n/backdrop/screen0/monitor%s\n' "$monitors" "$safe")"
+  done
+fi
+monitors="$(printf '%s\n%s\n%s\n' "$monitors" '/backdrop/screen0/monitor0' '/backdrop/screen0/monitorDexDisplay' | sed '/^$/d' | sort -u)"
+workspaces="$(xfconf-query -c xfwm4 -p /general/workspace_count 2>/dev/null || echo 4)"
+case "$workspaces" in *[!0-9]*|'') workspaces=4 ;; esac
+if test "$workspaces" -lt 1; then workspaces=1; fi
+if test "$workspaces" -gt 10; then workspaces=10; fi
+for monitor in $monitors; do
+  log "Monitor: $monitor"
+  i=0
+  while test "$i" -lt "$workspaces"; do
+    base="$monitor/workspace$i"
+    setting xfce4-desktop "$base/last-image" string "$WALL"
+    setting xfce4-desktop "$base/image-style" int 5
+    i=$((i+1))
+  done
 done
+log 'Imagem definida nas configuracoes do XFCE.'
+xfconf-query -c xfce4-desktop -lv 2>/dev/null | grep -E 'workspace0/(last-image|image-style)' | head -n 18 || true
 # Evita acidentalmente acessar pastas fora do HOME e preserva atalhos existentes.
 mkdir -p "$HOME/Desktop"
 if test ! -e "$HOME/Desktop/Klaus Firefox.desktop"; then
