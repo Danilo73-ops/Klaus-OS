@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SVG / assets/klaus-night.svg / XFCE wallpaper / Klaus OS -->
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1080" viewBox="0 0 2400 1080">
+<defs>
+<linearGradient id="sky" x2="0" y2="1"><stop stop-color="#010a20"/><stop offset=".6" stop-color="#07477a"/><stop offset="1" stop-color="#00142c"/></linearGradient>
+<linearGradient id="water" x2="0" y2="1"><stop stop-color="#0e75ad"/><stop offset="1" stop-color="#020b1b"/></linearGradient>
+<radialGradient id="glow"><stop stop-color="#38c7ff" stop-opacity=".35"/><stop offset="1" stop-color="#0078db" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="2400" height="1080" fill="url(#sky)"/>
+<ellipse cx="1620" cy="395" rx="640" ry="500" fill="url(#glow)"/>
+<circle cx="2000" cy="210" r="195" fill="#61d1ff" opacity=".3"/>
+<g fill="#a6dfff"><circle cx="335" cy="110" r="2"/><circle cx="500" cy="200" r="2"/><circle cx="780" cy="92" r="1.6"/><circle cx="1100" cy="130" r="2"/><circle cx="1350" cy="80" r="1.6"/><circle cx="2250" cy="88" r="2"/></g>
+<path d="M0 735 260 525 408 670 660 355 830 576 965 457 1190 720 1410 500 1610 635 1800 410 2000 675 2190 530 2400 685V1080H0Z" fill="#063358"/>
+<path d="M0 775 250 620 440 710 688 435 860 612 1080 515 1320 740 1520 605 1830 485 2070 680 2240 590 2400 710V1080H0Z" fill="#021a34"/>
+<path d="M0 746Q320 726 670 748T1340 744Q1700 721 2060 745T2400 741V1080H0Z" fill="url(#water)"/>
+<path d="M0 746Q320 726 670 748T1340 744Q1700 721 2060 745T2400 741" fill="none" stroke="#2ac4fa" stroke-width="4" opacity=".7"/>
+<g stroke="#5fcfff" opacity=".15"><path d="M120 810h650m370 0h910M300 880h900m350 0h700M100 970h710m200 0h900"/></g>
+<g transform="translate(1330 275)" fill="#d9f6ff">
+<path d="M-85 85Q-178 25 -234 -30Q-253 -47 -266 -40Q-284 -24 -250 -8Q-201 29 -131 109Q-154 155 -133 187Q-117 209 -82 200L-43 221L-30 205L26 203L54 221L70 207Q117 195 130 155Q154 147 166 122Q168 103 147 100Q145 72 126 53L115 -10Q100 -32 79 -19L62 44Q44 40 28 43L2 -20Q-19 -37 -33 -13L-22 57Q-72 55 -85 85Z"/>
+<circle cx="107" cy="94" r="7" fill="#0a3764"/>
+<path d="M145 116l30 8m-31 5 32 19" stroke="#0a3764" stroke-width="4" fill="none"/>
+</g>
+<g text-anchor="middle" font-family="DejaVu Sans,sans-serif">
+<text x="1360" y="578" font-size="94" letter-spacing="19" font-weight="300" fill="#eefbff">KLAUS <tspan fill="#00bfff">OS</tspan></text>
+<text x="1360" y="629" font-size="21" letter-spacing="7" fill="#afe6ff">LIGHTWEIGHT  •  PORTABLE  •  POWERFUL</text>
+</g>
+</svg>
