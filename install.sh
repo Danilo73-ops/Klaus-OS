@@ -10,8 +10,11 @@ fail() { printf '[KLAUS OS] ERRO: %s\n' "$*" >&2; exit 1; }
 command -v xfconf-query >/dev/null || fail 'XFCE ausente. Execute: pkg install xfce'
 command -v xfce4-panel >/dev/null || fail 'xfce4-panel ausente.'
 test -s "$ROOT/assets/klaus-night.svg" || fail 'Wallpaper SVG ausente.'
-pid="$(pgrep -x xfce4-session 2>/dev/null | head -n1 || true)"
-test -n "$pid" || fail 'Abra primeiro a sessão XFCE no Termux:X11.'
+# O Android/Termux pode reportar nomes de processo diferentes em pgrep -x.
+# Inspeciona a linha de comando completa e seleciona somente o executável real.
+pid="$(pgrep -af 'xfce4-session' 2>/dev/null | awk '($2 == "xfce4-session" || $2 ~ /\/xfce4-session$/) { print $1; exit }' || true)"
+test -n "$pid" || fail 'Sessão XFCE não localizada. Rode: pgrep -af "xfce4-session"'
+log "XFCE ativo no processo $pid"
 if test -r "/proc/$pid/environ"; then
   while IFS= read -r -d '' item; do
     case "$item" in DBUS_SESSION_BUS_ADDRESS=*|DISPLAY=*|XAUTHORITY=*) export "$item" ;; esac
