@@ -113,7 +113,7 @@ cp -f "$ROOT/assets/klaus-night.svg" "$WALL_DIR/klaus-night.svg"
 # Wallpaper no workspace ativo e nos demais; XFCE pode usar nomes distintos de monitor.
 # Usa o prefixo real das propriedades já registradas pelo xfdesktop.
 wall_props="$(xfconf-query -c xfce4-desktop -p /backdrop -l 2>/dev/null | grep -E '/(last-image|image-path)
-log 'Klaus OS V1 aplicado. Confira no Termux:X11.'
+log 'Klaus OS V2 aplicado. Confira no Termux:X11.'
 log "Backup: $BACKUP"
  || true)"
 bases="$(printf '%s\n' "$wall_props" | sed -nE 's@/(last-image|image-path)$@@p' | sort -u)"
