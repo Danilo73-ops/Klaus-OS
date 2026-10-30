@@ -24,6 +24,10 @@ jobs:
         run: |
           bash -n install.sh
           bash -n scripts/restore.sh
+          bash -n scripts/plasma/install.sh
+          bash -n scripts/plasma/session.sh
+          bash -n scripts/plasma/start-test.sh
+          bash -n scripts/plasma/start-xfce.sh
           python3 -m py_compile scripts/wallpaper.py
       - name: Render and inspect wallpaper PNG
         run: |
