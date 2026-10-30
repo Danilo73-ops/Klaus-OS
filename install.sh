@@ -110,31 +110,18 @@ setting xsettings /Xft/HintStyle string hintslight
 WALL_DIR="$DATA/wallpapers"
 mkdir -p "$WALL_DIR"
 cp -f "$ROOT/assets/klaus-night.svg" "$WALL_DIR/klaus-night.svg"
-# Wallpaper no workspace ativo e nos demais; XFCE pode usar nomes distintos de monitor.
-# Usa o prefixo real das propriedades já registradas pelo xfdesktop.
-wall_props="$(xfconf-query -c xfce4-desktop -p /backdrop -l 2>/dev/null | grep -E '/(last-image|image-path)
-log 'Klaus OS V2 aplicado. Confira no Termux:X11.'
-log "Backup: $BACKUP"
- || true)"
+# Klaus OS V2: configura wallpaper para os monitores e workspaces existentes.
+wall_props="$(xfconf-query -c xfce4-desktop -p /backdrop -l 2>/dev/null | grep -E '/(last-image|image-path)$' || true)"
 bases="$(printf '%s\n' "$wall_props" | sed -nE 's@/(last-image|image-path)$@@p' | sort -u)"
-for common in /backdrop/screen0/monitor0/workspace0 /backdrop/screen0/monitor0; do
-  bases="$(printf '%s\n%s\n' "$bases" "$common")"
-done
-for base in $(printf '%s\n' "$bases" | sort -u); do
-  test -n "$base" || continue
+# Compatibilidade com XFCE que ainda nao criou propriedades de wallpaper.
+if test -z "$bases"; then
+  bases="/backdrop/screen0/monitor0/workspace0"
+fi
+for base in $bases; do
   setting xfce4-desktop "$base/last-image" string "$WALL_DIR/klaus-night.svg"
   setting xfce4-desktop "$base/image-style" int 5
-  setting xfce4-desktop "$base/image-show" bool true
 done
-# Assegurar que áreas de trabalho não configuradas também tenham a imagem.
-for mon in $(printf '%s\n' "$bases" | sed -nE 's@(/backdrop/screen[0-9]+/monitor[^/]+)(/workspace[0-9]+)?$@\1@p' | sort -u); do
-  for desk in 0 1 2 3; do
-    setting xfce4-desktop "$mon/workspace$desk/last-image" string "$WALL_DIR/klaus-night.svg"
-    setting xfce4-desktop "$mon/workspace$desk/image-style" int 5
-  done
-done
-xfce4-panel -r >/dev/null 2>&1 || log 'Reabra o XFCE se a barra não atualizar.'
 xfdesktop --reload >/dev/null 2>&1 || true
-log 'Wallpaper definido para o(s) monitor(es) configurado(s).'
-log 'Klaus OS V1 aplicado. Confira no Termux:X11.'
+xfce4-panel -r >/dev/null 2>&1 || log 'Reabra o XFCE se a barra nao atualizar.'
+log 'Klaus OS V2 aplicado. Confira no Termux:X11.'
 log "Backup: $BACKUP"
