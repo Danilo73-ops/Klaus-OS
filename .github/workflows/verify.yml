@@ -20,10 +20,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check Bash syntax
+      - name: Validate Bash and Python syntax
         run: |
           bash -n install.sh
           bash -n scripts/restore.sh
-      - name: Validate wallpaper XML
+          python3 -m py_compile scripts/wallpaper.py
+      - name: Render and inspect wallpaper PNG
+        run: |
+          python3 scripts/wallpaper.py /tmp/klaus-os-11.png
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          p=Path('/tmp/klaus-os-11.png')
+          data=p.read_bytes()
+          assert data[:8]==b'\x89PNG\r\n\x1a\n', 'invalid PNG signature'
+          w,h=struct.unpack('>II',data[16:24])
+          assert (w,h)==(1600,720), (w,h)
+          assert len(data)>20000, 'empty/invalid wallpaper'
+          print('Klaus OS wallpaper OK:',w,h,len(data))
+          PY
+      - name: Validate legacy SVG
         run: |
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('assets/klaus-night.svg')"
