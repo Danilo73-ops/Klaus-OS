@@ -122,9 +122,21 @@
       add(video.currentSrc || video.src || video.getAttribute("src"),"video");
       for(const source of video.querySelectorAll("source[src]")) add(source.getAttribute("src"),"source");
     }
+    // The preview has a small Download control shown on hover (observed in fal.ai).
+    // If that control is a native <a href>, resolve its media URL and reuse the
+    // verified Firefox downloads.download path with predictable file naming.
+    // Never blindly click a button here: that can open a dialog or duplicate downloads.
     for(const a of document.querySelectorAll('a[href]')) {
       const h=a.getAttribute("href")||"";
-      if(/\.mp4(?:[?#]|$)|\.webm(?:[?#]|$)|\/video\//i.test(h) || (a.hasAttribute("download")&&/video|mp4|download/i.test((a.innerText||"")+" "+(a.getAttribute("download")||"")))) add(h,"link");
+      const label=[a.getAttribute("title"),a.getAttribute("aria-label"),
+        a.getAttribute("data-testid"),a.getAttribute("download"),a.textContent]
+        .filter(Boolean).join(" ");
+      const mediaUrl=/\.mp4(?:[?#]|$)|\.webm(?:[?#]|$)|\/video\//i.test(h);
+      const downloadControl=/\b(download|baixar|descargar)\b/i.test(label);
+      if(mediaUrl || (a.hasAttribute("download") && /video|mp4|download/i.test(label)) ||
+         (downloadControl && /\.(?:mp4|webm)(?:[?#]|$)/i.test(h))) {
+        add(h,downloadControl?"preview-download-link":"link");
+      }
     }
     return [...collected.values()];
   }
