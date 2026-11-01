@@ -6,11 +6,84 @@ let state, loopPromise = null, persistQueue = Promise.resolve();
 const blank = () => ({
   prompts: [], cursor: 0, status: "idle", tabId: null,
   calibration: { prompt: null, run: null },
-  freeOnly: true, inFlight: null, history: [], log: [], updatedAt: Date.now()
+  freeOnly: true, inFlight: null, history: [], log: [], batchNo: 1, updatedAt: Date.now()
 });
 function log(msg) {
   state.log.unshift(new Date().toLocaleTimeString("pt-BR") + " | " + msg);
   state.log = state.log.slice(0, 100);
+}
+const ARCHIVE_PREFIX="klausAutoVideoArchiveV2_";
+function validateBatch(prompts,requireFull=false) {
+  if(!Array.isArray(prompts)||!prompts.length||prompts.length>25)
+    throw Error("O arquivo precisa ter de 1 a 25 prompts.");
+  if(requireFull && prompts.length!==25)
+    throw Error("Novo lote requer exatamente 25 prompts. Detectei "+prompts.length+". Nenhuma fila foi alterada.");
+  const texts=prompts.map(x=>String(x||"").trim());
+  const nums=texts.map((t,i)=>{
+    const hit=/^PROMPT\\s+(\\d{1,2})\\s*[-–—:.]/i.exec(t);
+    if(!hit || Number(hit[1])!==i+1)
+      throw Error("O arquivo precisa conter PROMPT "+String(i+1).padStart(2,"0")+
+        " na posição "+(i+1)+". Nenhum lote foi alterado.");
+    if(t.length<100 || t.length>20000)
+      throw Error("PROMPT "+String(i+1).padStart(2,"0")+" incompleto ou longo demais.");
+    return Number(hit[1]);
+  });
+  return texts;
+}
+async function archiveAndPrepare(prompts) {
+  const texts=validateBatch(prompts,true);
+  if(loopPromise || state.status==="running" || state.inFlight) {
+    throw Error("Existe geração em andamento. Não mexi na fila.");
+  }
+  if(state.prompts.length && (state.status!=="complete" ||
+    state.cursor!==state.prompts.length ||
+    state.prompts.some(p=>p.status!=="done"))) {
+    throw Error("O lote anterior tem pendências. Exporte o progresso e conclua antes de começar outro.");
+  }
+  const old=JSON.parse(JSON.stringify(state));
+  const oldNo=Number.isInteger(old.batchNo)&&old.batchNo>0?old.batchNo:1;
+  const nextNo=state.prompts.length?oldNo+1:oldNo;
+  if(state.prompts.length) {
+    // Two independent backups: browser storage AND a JSON download. If the
+    // download fails, do not alter the active queue.
+    const key=ARCHIVE_PREFIX+String(oldNo).padStart(3,"0")+"_"+Date.now();
+    await browser.storage.local.set({[key]:old});
+    const raw=JSON.stringify(old,null,2);
+    const blob=new Blob([raw],{type:"application/json;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    try {
+      const downloadId=await browser.downloads.download({
+        url,
+        filename:"KLAUS AUT. FLUX MAX/ESPANHOL/Backups/klaus_lote_"+
+          String(oldNo).padStart(2,"0")+"_progresso.json",
+        conflictAction:"uniquify",saveAs:false
+      });
+      const limit=Date.now()+30000;
+      let complete=false;
+      while(Date.now()<limit) {
+        const results=await browser.downloads.search({id:downloadId});
+        if(results[0]?.state==="complete"){complete=true;break;}
+        if(results[0]?.state==="interrupted")
+          throw Error("Backup JSON interrompido: "+(results[0].error||"erro"));
+        await delay(350);
+      }
+      if(!complete) throw Error("Backup JSON não foi confirmado. O lote anterior continua intocado.");
+    } finally {URL.revokeObjectURL(url);}
+  }
+  const next=blank();
+  next.batchNo=nextNo;
+  next.tabId=old.tabId;
+  next.calibration=old.calibration;
+  next.freeOnly=old.freeOnly!==false;
+  next.prompts=texts.map((text,id)=>({id,text,status:"waiting"}));
+  next.log=[new Date().toLocaleTimeString("pt-BR")+
+    " | Lote "+nextNo+" preparado: "+texts.length+
+    " prompts importados. Lote anterior arquivado; MP4 preservados."];
+  // Save the new queue first. Switch the in-memory queue only on success.
+  await persistQueue;
+  await browser.storage.local.set({[KEY]:JSON.parse(JSON.stringify(next))});
+  state=next;
+  return {ok:true,total:texts.length,batchNo:nextNo,archive:!!old.prompts.length};
 }
 function persist() {
   state.updatedAt = Date.now();
@@ -210,7 +283,9 @@ async function processQueue() {
         try {
           id = await browser.downloads.download({
             url:result.url,
-            filename:"KLAUS AUT. FLUX MAX/ESPANHOL/klaus_ext_es_" + String(index + 1).padStart(2,"0") + ".mp4",
+            filename:"KLAUS AUT. FLUX MAX/ESPANHOL/" +
+              (state.batchNo>1?"klaus_ext_es_lote"+String(state.batchNo).padStart(2,"0")+"_":"klaus_ext_es_") +
+              String(index + 1).padStart(2,"0") + ".mp4",
             conflictAction:"uniquify", saveAs:false
           });
         } catch (e) { throw Error("Falha ao iniciar download do vídeo: " + e.message); }
@@ -226,7 +301,8 @@ async function processQueue() {
         const savedTo = (download.filename || "").replace(/\\/g, "/");
         const savedParts=savedTo.toLowerCase().split("/").filter(Boolean);
         const baseIndex=savedParts.findIndex(x=>x==="download"||x==="downloads");
-        const wantedName="klaus_ext_es_"+String(index + 1).padStart(2,"0");
+        const wantedName=(state.batchNo>1?"klaus_ext_es_lote"+String(state.batchNo).padStart(2,"0")+"_":"klaus_ext_es_")+
+          String(index + 1).padStart(2,"0");
         const actualName=savedParts[baseIndex+3]||"";
         const inSpanishFolder=baseIndex>=0 &&
           savedParts[baseIndex+1]==="klaus aut. flux max" &&
@@ -282,6 +358,9 @@ async function handle(msg, sender) {
   }
   case "OPEN_SITE": { const t=await browser.tabs.create({url:"https://fal.ai/sandbox"}); state.tabId=t.id;await persist();return {ok:true}; }
   case "OPEN_PANEL": { await browser.tabs.create({url:browser.runtime.getURL("dashboard.html")}); return {ok:true}; }
+  case "NEW_BATCH_IMPORT": {
+    return archiveAndPrepare(msg.prompts);
+  }
   case "LOAD": {
     if (state.status === "running" || state.inFlight) throw Error("Existe uma geração em andamento ou para revisão. Não sobrescreva a fila.");
     if (state.prompts.some(p=>p.status==="done")) throw Error("Já existe vídeo concluído. Use o botão Acrescentar, não Salvar fila, para não repetir o vídeo 01.");
