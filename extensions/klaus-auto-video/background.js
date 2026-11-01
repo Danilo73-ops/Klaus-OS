@@ -72,7 +72,54 @@ async function foregroundSandbox(reason, force=false) {
   return tab;
 }
 
+// A media mutation event wakes the download monitor immediately,
+// rather than relying only on throttled Firefox background timers.
+let mediaWakeResolver=null, downloadWakeResolvers=new Map();
+function onMediaSignal() {
+  if(mediaWakeResolver) {const wake=mediaWakeResolver;mediaWakeResolver=null;wake();}
+}
+async function waitMediaOrTimeout(ms) {
+  await new Promise(resolve=>{
+    let finished=false;
+    const timer=setTimeout(done,ms);
+    function done() {
+      if(finished)return;
+      finished=true;
+      clearTimeout(timer);
+      if(mediaWakeResolver===done)mediaWakeResolver=null;
+      resolve();
+    }
+    mediaWakeResolver=done;
+  });
+}
+browser.downloads.onChanged.addListener(delta=>{
+  if(delta && Number.isInteger(delta.id) && downloadWakeResolvers.has(delta.id)){
+    const wake=downloadWakeResolvers.get(delta.id);
+    downloadWakeResolvers.delete(delta.id);
+    wake();
+  }
+});
+async function waitDownloadOrTimeout(id,ms) {
+  await new Promise(resolve=>{
+    let finished=false;
+    const timer=setTimeout(done,ms);
+    function done(){
+      if(finished)return;
+      finished=true;
+      clearTimeout(timer);
+      if(downloadWakeResolvers.get(id)===done)downloadWakeResolvers.delete(id);
+      resolve();
+    }
+    downloadWakeResolvers.set(id,done);
+  });
+}
 async function awaitResult(index, flight) {
+  // Persisted flight.baseline makes this safe across pauses and Firefox reloads.
+  // The watcher signals on newly inserted video/source/link nodes without
+  // waiting for the user to scroll the Sandbox manually.
+  try {await sendTab("WATCH_MEDIA",{baseline:flight.baseline});}
+  catch(e) {throw Error("Não consegui ativar o detector de resultados: "+e.message);}
+  let scans=0;
   while (state.status === "running" && state.cursor === index) {
     if (Date.now() - flight.startedAt > RESULT_TIMEOUT) throw Error("Aguardando o vídeo há mais de 20 min. Revisão manual para evitar geração duplicada.");
     let media;
@@ -80,6 +127,11 @@ async function awaitResult(index, flight) {
       // If the user opens the dashboard, allow a short check, then put the
       // rendering tab back in front without needing the user to visit it.
       await foregroundSandbox("aguardando resultado");
+      // Every few checks, expose the newest result area to trigger lazy media
+      // mounting. This doesn't click Run and never causes another generation.
+      if((scans++ % 3)===2) {
+        try {await sendTab("WAKE_RESULTS");}catch(_){}
+      }
       media = await sendTab("SCAN", {calibration: state.calibration});
       if (media.pageHidden && Date.now()-lastSandboxHiddenLog > 45000) {
         lastSandboxHiddenLog=Date.now();
@@ -93,8 +145,14 @@ async function awaitResult(index, flight) {
     // Only fresh media, never an output that was already on the page before Run.
     const fresh = (media.videos || []).filter(v => v.url && !flight.baseline.includes(v.url));
     const eligible = fresh.find(v => /^https?:\/\//i.test(v.url)) || fresh.find(v => /^blob:/i.test(v.url));
-    if (eligible) return eligible;
-    await delay(WAIT_STEP);
+    if (eligible) {
+      log("Mídia localizada para prompt "+(index+1)+
+        " após "+Math.round((Date.now()-flight.startedAt)/1000)+"s. Iniciando download.");
+      await persist();
+      return eligible;
+    }
+    // Wake immediately on DOM mutation, otherwise perform a short fallback scan.
+    await waitMediaOrTimeout(1700);
   }
   return null;
 }
@@ -106,7 +164,7 @@ async function awaitDownload(downloadId) {
     if (found[0].state === "complete") return found[0];
     if (found[0].state === "interrupted") throw Error("Download interrompido: " + (found[0].error || "erro desconhecido"));
     if (Date.now() > limit) throw Error("Download demorou mais de 15 min. Verifique o gerenciador do Firefox.");
-    await delay(1500);
+    await waitDownloadOrTimeout(downloadId,1600);
   }
   return null;
 }
@@ -204,6 +262,18 @@ async function launch() {
 async function handle(msg, sender) {
   await ready;
   switch(msg.type) {
+  case "MEDIA_SIGNAL": {
+    // A result signal must originate from the bound fal.ai tab, never panel
+    // messages or an unrelated browser tab. No download is auto-initiated here.
+    if(sender?.tab?.id!==state.tabId || state.status!=="running" ||
+      !state.inFlight || state.inFlight.stage!=="submitted") return {ok:false};
+    const baseline=new Set(state.inFlight.baseline||[]);
+    if(Array.isArray(msg.urls) && msg.urls.some(u=>typeof u==="string" &&
+      /^(https?:|blob:)/i.test(u) && !baseline.has(u))) {
+      onMediaSignal();
+    }
+    return {ok:true};
+  }
   case "GET": return state;
   case "BIND": {
     const t = await ensureTab();
