@@ -1,0 +1,40 @@
+{
+  "manifest_version": 2,
+  "name": "Klaus Auto Video",
+  "version": "1.0.0",
+  "description": "Fila sequencial de ate 25 videos no fal.ai Sandbox, com verificacao de gratuidade e download.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "downloads",
+    "https://fal.ai/*",
+    "https://*.fal.media/*"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "klaus-auto-video@klaus.local",
+      "strict_min_version": "109.0"
+    }
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://fal.ai/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_title": "Klaus Auto Video | Abrir painel"
+  },
+  "web_accessible_resources": []
+}
