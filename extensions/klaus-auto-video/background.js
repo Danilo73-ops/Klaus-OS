@@ -20,7 +20,7 @@ function validateBatch(prompts,requireFull=false) {
     throw Error("Novo lote requer exatamente 25 prompts. Detectei "+prompts.length+". Nenhuma fila foi alterada.");
   const texts=prompts.map(x=>String(x||"").trim());
   const nums=texts.map((t,i)=>{
-    const hit=/^PROMPT\\s+(\\d{1,2})\\s*[-–—:.]/i.exec(t);
+    const hit=/^PROMPT\s+(\d{1,2})\s*[-–—:.]/i.exec(t);
     if(!hit || Number(hit[1])!==i+1)
       throw Error("O arquivo precisa conter PROMPT "+String(i+1).padStart(2,"0")+
         " na posição "+(i+1)+". Nenhum lote foi alterado.");
