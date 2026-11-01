@@ -78,3 +78,13 @@ Depois que o primeiro vídeo foi comprovado por `ffprobe`, o usuário observou q
 4. `Reload` no Firefox carrega a versão nova sem apagar o armazenamento `browser.storage.local`. Abra novamente o painel e confirme a posição, a quantidade de baixados e o status.
 5. Se o trabalho atual estiver em "Gerando" ou "Baixando", use **Retomar** e a extensão continuará acompanhando o mesmo item, sem clicar novamente em Run. Se estiver em "Revisar", confira primeiro a situação na fal.ai e não reenvie sem certeza.
 6. Ao iniciar ou retomar, o Firefox selecionará o Sandbox automaticamente. Pode-se minimizar o visualizador AVNC do Android, mas manter Termux, VNC e Firefox abertos.
+
+## Detector rápido de resultados (02/11/2026)
+
+**Sintoma relatado:** fal.ai já mostra o vídeo pronto, mas o Klaus Auto Video só baixa após o usuário voltar à aba, abrir o painel ou rolar a página, deixando a sequência lenta.
+
+**Mudança implementada:** a extensão observa eventos de inserção de `video`/`source`/links de mídia no DOM com `MutationObserver` e avisa imediatamente o background (`MEDIA_SIGNAL`). O monitor não depende somente do temporizador antigo de 3,5 segundos: agora tem verificação de contingência em ~1,7 s e detecção de conclusão de download via `browser.downloads.onChanged`. A cada algumas verificações, tenta rolar automaticamente a lista de resultados até o topo para fazer o site montar a prévia preguiçosa (*lazy loading*). Continua exigindo URL de mídia nova após a geração, sem clicar cegamente no botão de download, nem reexecutar Run.
+
+**Limitação real:** só é possível detectar mídia que fal.ai expôs no DOM ou nas URLs dos vídeos; caso a página não busque/monte o resultado até ser reativada, uma extensão que depende do DOM não consegue assegurar funcionamento totalmente independente. A otimização **não converteu o lote em envios paralelos**. Um modo paralelo exigiria mapear cada job ao vídeo certo e testar a quota antes do uso.
+
+**Como aplicar sem perder a fila:** não reinicie o Firefox ou a extensão em `Enviando`. Clique **Pausar** depois que um job indicar `Gerando` ou `Baixando`, confirme que está pausado e mantenha seu JSON de backup. Atualize `git pull --ff-only`, use `Reload` em `about:debugging`, volte ao painel e confirme a posição antes de clicar **Retomar**. Uma atualização dos arquivos do GitHub por si só não altera a extensão que já está em execução.
