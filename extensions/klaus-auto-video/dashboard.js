@@ -103,6 +103,16 @@ $("load").onclick=()=>{
     action("LOAD",{prompts},"Fila salva: "+prompts.length+" prompts.");
   }catch(e){msg(e.message,true);}
 };
+$("append").onclick=async()=>{
+  try {
+    const prompts=parsePrompts($("raw").value);
+    if (!confirm("Acrescentar "+prompts.length+" prompts depois dos vídeos já baixados, sem repetir o primeiro?")) return;
+    const result=await api("APPEND_REMAINING",{prompts});
+    await refresh();
+    msg("✅ "+prompts.length+" prompts adicionados. Próximo: "+result.next+
+      "/"+result.total+". Vídeos anteriores preservados. Clique Iniciar lote quando desejar.");
+  }catch(_){}
+};
 $("importFile").onchange=async event=>{
   const f=event.target.files?.[0];if(!f)return;
   try{$("raw").value=await f.text();msg("Arquivo importado. Confira e clique Salvar fila.");}
