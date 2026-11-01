@@ -37,6 +37,8 @@
     <p>Separe prompts longos por uma linha contendo apenas <code>---</code> ou cole JSON com uma lista <code>prompts</code>. Também aceita blocos iniciados por <code>PROMPT 01 —</code>.</p>
     <textarea id="raw" placeholder="PROMPT 01 — Vídeo 1&#10;Cena completa...&#10;&#10;---&#10;&#10;PROMPT 02 — Vídeo 2&#10;Cena completa..."></textarea>
     <div class="row"><label class="file secondary" for="importFile">📂 Importar .json ou .txt<input id="importFile" type="file" accept=".json,.txt,application/json,text/plain"></label><button id="load">💾 Salvar fila</button></div>
+    <div class="row"><button id="append" class="secondary">➕ Acrescentar prompts 02–25 sem repetir o 01</button></div>
+    <p class="hint">Se o vídeo 01 já foi concluído, cole somente os prompts 02 a 25 e use <strong>Acrescentar</strong>, não Salvar fila. O histórico e o arquivo 01 ficam preservados.</p>
   </article>
 </section>
 <section class="card controls">
