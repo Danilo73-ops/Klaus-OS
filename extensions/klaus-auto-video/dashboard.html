@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- HTML / dashboard.html / Firefox WebExtension / Klaus Auto Video control panel -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Klaus Auto Video</title>
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+<main class="wrap">
+<header>
+  <div class="brand">K<span>↗</span></div>
+  <div class="title"><h1>Klaus Auto Video</h1><p>fal.ai Sandbox · fila sequencial · até 25 vídeos</p></div>
+  <div id="status" class="badge">PARADO</div>
+</header>
+<section class="hero">
+  <div class="metric"><b id="metricTotal">0</b><small>na fila</small></div>
+  <div class="metric"><b id="metricDone">0</b><small>baixados</small></div>
+  <div class="metric"><b id="metricCurrent">—</b><small>posição</small></div>
+  <div class="metric"><b id="metricPending">0</b><small>pendentes</small></div>
+</section>
+<section class="grid">
+  <article class="card">
+    <h2>1. Preparar o Sandbox</h2>
+    <p>Abra <strong>fal.ai/sandbox</strong> no Firefox. Selecione <strong>Video → Text to Video</strong>, o modelo com geração grátis, formato 9:16 e duração desejada. Deixe <strong>um único modelo</strong> selecionado.</p>
+    <div class="row"><button id="openSite" class="secondary">🌐 Abrir Sandbox</button><button id="bind" class="secondary">🔗 Vincular aba</button></div>
+    <div class="row"><button id="pickPrompt">1. Marcar campo Prompt</button><button id="pickRun">2. Marcar botão Run</button></div>
+    <p class="hint">Ao marcar, vá para a aba fal.ai, clique no elemento indicado, depois volte para este painel. Marcar o Run <strong>não</strong> executa geração.</p>
+    <div class="pair"><div>Campo Prompt <b id="promptMark">Não marcado</b></div><div>Botão Run <b id="runMark">Não marcado</b></div></div>
+  </article>
+  <article class="card">
+    <h2>2. Carregar até 25 prompts</h2>
+    <p>Separe prompts longos por uma linha contendo apenas <code>---</code> ou cole JSON com uma lista <code>prompts</code>. Também aceita blocos iniciados por <code>PROMPT 01 —</code>.</p>
+    <textarea id="raw" placeholder="PROMPT 01 — Vídeo 1&#10;Cena completa...&#10;&#10;---&#10;&#10;PROMPT 02 — Vídeo 2&#10;Cena completa..."></textarea>
+    <div class="row"><label class="file secondary" for="importFile">📂 Importar .json ou .txt<input id="importFile" type="file" accept=".json,.txt,application/json,text/plain"></label><button id="load">💾 Salvar fila</button></div>
+  </article>
+</section>
+<section class="card controls">
+  <h2>3. Executar e acompanhar</h2>
+  <label class="toggle"><input id="freeOnly" type="checkbox" checked><span><b>Somente geração grátis</b><small>Interrompe se o Sandbox não confirmar “Free” perto do Run. Não assume que créditos gratuitos existem.</small></span></label>
+  <div class="row actions">
+    <button id="start" class="primary">▶ Iniciar lote</button>
+    <button id="pause" class="secondary">⏸ Pausar</button>
+    <button id="resume" class="secondary">↻ Retomar</button>
+    <button id="export" class="secondary">⇩ Exportar JSON</button>
+  </div>
+  <p class="hint">Iniciar autoriza o envio sequencial dos prompts carregados. A extensão só avança após confirmar que o download terminou. Se não detectar o vídeo ou se a aba cair, ela pausa em revisão, <strong>sem repetir automaticamente a geração</strong>.</p>
+  <div id="message" role="status" aria-live="polite"></div>
+  <div class="progress"><div id="bar"></div></div>
+</section>
+<section id="review" class="card warn" hidden>
+  <h2>⚠ Revisão obrigatória</h2>
+  <p id="reviewText"></p>
+  <p>Confira o Sandbox e a pasta Downloads. Se o vídeo já foi baixado, confirme. Se NÃO foi gerado, libere manualmente o reenvio. Reenviar pode gastar outra geração.</p>
+  <div class="row">
+    <button id="reviewDone" class="secondary">✓ Já baixei este vídeo</button>
+    <button id="reviewRetry" class="danger">↻ Liberar reenvio</button>
+    <button id="skip" class="secondary">⇥ Pular item</button>
+  </div>
+</section>
+<section class="grid bottom">
+  <article class="card"><h2>Fila</h2><div id="queue" class="queue muted">Nenhum prompt carregado.</div></article>
+  <article class="card"><h2>Registro de eventos</h2><div id="logs" class="logs muted">Sem eventos.</div></article>
+</section>
+<footer>Klaus OS · Firefox em :3 · Não interfere no robô FLUX MAX em :0 · Sem API Kie</footer>
+</main>
+<script src="dashboard.js"></script>
+</body>
+</html>
