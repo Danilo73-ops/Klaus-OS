@@ -37,7 +37,7 @@ async function archiveAndPrepare(prompts) {
   }
   if(state.prompts.length && (state.status!=="complete" ||
     state.cursor!==state.prompts.length ||
-    state.prompts.some(p=>p.status!=="done"))) {
+    state.prompts.some(p=>!["done","skipped"].includes(p.status)))) {
     throw Error("O lote anterior tem pendências. Exporte o progresso e conclua antes de começar outro.");
   }
   const old=JSON.parse(JSON.stringify(state));
