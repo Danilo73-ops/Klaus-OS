@@ -175,6 +175,18 @@
   }
   browser.runtime.onMessage.addListener(async msg => {
     switch(msg.op) {
+    case "AUTOMARK": {
+      const p=pickPrompt(), r=pickRun();
+      return {
+        prompt:p?selector(p):null,
+        run:r?selector(r):null,
+        operation:selectedOperation(),
+        free:pricingFree(r),
+        modelCount:modelCount(r),
+        promptLabel:p?[p.tagName,p.getAttribute("placeholder")||""].join(" "):"",
+        runLabel:r?runLabel(r):""
+      };
+    }
     case "PICK": return beginPick(msg.kind);
     case "SCAN": {
       const p=q(msg.calibration?.prompt)||pickPrompt();
