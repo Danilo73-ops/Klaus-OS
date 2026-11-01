@@ -75,6 +75,16 @@ async function refresh() {
 }
 $("openSite").onclick=()=>action("OPEN_SITE",{},"Sandbox aberto.");
 $("bind").onclick=()=>action("BIND",{},"Aba do Sandbox vinculada.");
+$("autoMark").onclick=async()=>{
+  try {
+    const result=await api("AUTO_MARK");
+    await refresh();
+    msg("✅ Campo Prompt e botão Run detectados sem gerar. "+
+      "Operação: "+result.operation+" | Modelos: "+result.modelCount+
+      " | Gratuito: "+(result.free?"confirmado perto do Run":"não confirmado")+
+      "\nBotão encontrado: "+result.runLabel);
+  }catch(_){}
+};
 $("testFolder").onclick=async()=>{
   try {
     const result=await api("TEST_FOLDER");
