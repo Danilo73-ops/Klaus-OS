@@ -1,11 +1,25 @@
-# Klaus OS Plasma
+# Klaus OS Plasma | segunda sessao segura
 
-Mantem o XFCE em :1. Instala Plasma 6 nativo do repositorio Termux X11, e testa em :2 sem apagar projetos.
+O robo FLUX MAX usa atualmente o display **:0** e CDP **9261**.
+O Klaus OS com KDE Plasma deve usar **:2**, sem tocar no servidor :0, no Chrome nem nos perfis do robo.
 
-Instalar: cd "$HOME/Klaus-OS" && git pull --ff-only && bash -n scripts/plasma/install.sh && bash scripts/plasma/install.sh
+## Instalar pacotes
+Em outra aba do Termux:
 
-Testar: cd "$HOME/Klaus-OS" && bash scripts/plasma/start-test.sh
+```bash
+cd "$HOME/Klaus-OS" && git pull --ff-only && bash scripts/plasma/install.sh
+```
 
-Voltar ao XFCE: bash "$HOME/Klaus-OS/scripts/plasma/start-xfce.sh"
+## Iniciar KDE em :2
 
-Logs em ~/.local/share/klaus-os/logs/. Instalacao pode consumir dados moveis.
+```bash
+cd "$HOME/Klaus-OS" && bash scripts/plasma/start-test.sh
+```
+
+O Termux:X11 instalado no celular nao reconhece a opcao `-tag`. A versao atual do script abre :2 **sem -tag**. Isso mantem os processos de :0 separados, mas as duas sessoes **podem compartilhar a mesma janela do aplicativo Android Termux:X11**. Portanto, nao garantimos duas janelas Android simultaneas. Para janelas graficas totalmente independentes, sera preciso instalar uma versao compativel com -tag ou usar outro visualizador separado, sem interromper o robo atual.
+
+## Log de diagnostico
+
+`~/.local/share/klaus-os/logs/plasma-test.log`
+
+Nenhum script de KDE mata, reinicia ou edita os arquivos do robo.
