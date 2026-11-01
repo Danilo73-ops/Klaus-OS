@@ -48,12 +48,48 @@ async function ensureTab() {
   return tab;
 }
 async function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+// Keep the existing Sandbox tab selected while the queue works.
+// Inactive Firefox tabs can delay media previews and page timers.
+let foregroundRequestedAt = 0, lastSandboxHiddenLog = 0;
+async function foregroundSandbox(reason, force=false) {
+  const tab=await ensureTab();
+  const now=Date.now();
+  const canRetry=force || now - foregroundRequestedAt > 25000;
+  if (!canRetry) return tab;
+  if (force || !tab.active) {
+    foregroundRequestedAt=now;
+    try {
+      await browser.tabs.update(tab.id,{active:true});
+      // Focus only the Firefox VNC window, never another Android/Termux process.
+      try {await browser.windows.update(tab.windowId,{focused:true});}catch(_){}
+      log("Sandbox selecionado automaticamente para atualizar vídeo: "+reason);
+      await persist();
+    } catch(e) {
+      log("Não foi possível trazer o Sandbox para frente: "+e.message);
+      await persist();
+    }
+  }
+  return tab;
+}
+
 async function awaitResult(index, flight) {
   while (state.status === "running" && state.cursor === index) {
     if (Date.now() - flight.startedAt > RESULT_TIMEOUT) throw Error("Aguardando o vídeo há mais de 20 min. Revisão manual para evitar geração duplicada.");
     let media;
-    try { media = await sendTab("SCAN", {calibration: state.calibration}); }
-    catch (e) { throw Error("Aba fal.ai indisponível ou recarregada: " + e.message); }
+    try {
+      // If the user opens the dashboard, allow a short check, then put the
+      // rendering tab back in front without needing the user to visit it.
+      await foregroundSandbox("aguardando resultado");
+      media = await sendTab("SCAN", {calibration: state.calibration});
+      if (media.pageHidden && Date.now()-lastSandboxHiddenLog > 45000) {
+        lastSandboxHiddenLog=Date.now();
+        log("Firefox reportou Sandbox oculto. Tentando reativar a aba sem recarregar.");
+        await foregroundSandbox("aba oculta",true);
+        await persist();
+      }
+    } catch (e) {
+      throw Error("Aba fal.ai indisponível ou recarregada: " + e.message);
+    }
     // Only fresh media, never an output that was already on the page before Run.
     const fresh = (media.videos || []).filter(v => v.url && !flight.baseline.includes(v.url));
     const eligible = fresh.find(v => /^https?:\/\//i.test(v.url)) || fresh.find(v => /^blob:/i.test(v.url));
@@ -301,13 +337,17 @@ async function handle(msg, sender) {
     if (state.inFlight) throw Error("Há envio pendente de revisão. Não clique novamente para evitar duplicar.");
     if (!state.calibration.prompt || !state.calibration.run) throw Error("Marque o campo Prompt e o botão Run no site.");
     if (state.cursor >= state.prompts.length) throw Error("Fila já concluída.");
-    await ensureTab();state.status="running";log("Iniciando lote.");await persist();launch();return {ok:true};
+    await ensureTab();state.status="running";log("Iniciando lote. O Firefox manterá o Sandbox selecionado.");await persist();
+    await foregroundSandbox("início do lote",true);
+    launch();return {ok:true};
   }
   case "PAUSE": {if(state.status==="running"){state.status="paused";log("Pausa solicitada. Nenhum novo vídeo será enviado.");await persist();}return {ok:true};}
   case "RESUME": {
     if(state.status!=="paused")throw Error("A fila não está pausada.");
     if(state.inFlight && !["submitted","downloading"].includes(state.inFlight.stage))throw Error("Envio incerto. Revise a página antes de continuar.");
-    state.status="running";log("Retomando sem repetir envios.");await persist();launch();return {ok:true};
+    state.status="running";log("Retomando sem repetir envios; ativando Sandbox.");await persist();
+    await foregroundSandbox("retomada",true);
+    launch();return {ok:true};
   }
   case "REVIEW_DONE": {
     if(state.status==="running")throw Error("Pause antes de confirmar.");
