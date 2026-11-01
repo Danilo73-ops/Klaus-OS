@@ -28,6 +28,8 @@ jobs:
           bash -n scripts/plasma/session.sh
           bash -n scripts/plasma/start-test.sh
           bash -n scripts/plasma/start-xfce.sh
+          bash -n scripts/plasma/start-vnc.sh
+          bash -n scripts/plasma/vnc-session.sh
           python3 -m py_compile scripts/wallpaper.py
       - name: Render and inspect wallpaper PNG
         run: |
