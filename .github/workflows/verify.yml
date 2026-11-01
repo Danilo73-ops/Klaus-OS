@@ -32,6 +32,22 @@ jobs:
           bash -n scripts/plasma/vnc-session.sh
           bash -n scripts/plasma/apply-theme.sh
           node --check scripts/plasma/klaus-layout.js
+          node --check extensions/klaus-auto-video/background.js
+          node --check extensions/klaus-auto-video/content.js
+          node --check extensions/klaus-auto-video/dashboard.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          base = Path("extensions/klaus-auto-video")
+          m = json.loads((base / "manifest.json").read_text())
+          assert m["manifest_version"] == 2
+          assert m["background"]["scripts"] == ["background.js"]
+          assert m["content_scripts"][0]["js"] == ["content.js"]
+          assert "downloads" in m["permissions"]
+          for filename in ("background.js", "content.js", "dashboard.js", "dashboard.html", "dashboard.css"):
+              assert (base / filename).is_file(), filename
+          print("Klaus Auto Video extension structure OK")
+          PY
           python3 -m py_compile scripts/wallpaper.py
       - name: Render and inspect wallpaper PNG
         run: |
