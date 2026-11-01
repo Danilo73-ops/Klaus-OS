@@ -140,6 +140,55 @@
     }
     return [...collected.values()];
   }
+  // Event-driven result discovery. No tab timer is required to notice newly
+  // inserted <video> or media links, including when fal.ai updates the DOM later.
+  let watch={enabled:false,baseline:new Set(),lastSignature:"",lastPoke:0};
+  function signalMediaChange(force=false) {
+    if(!watch.enabled) return;
+    const urls=scanVideos().map(v=>v.url).filter(url=>!watch.baseline.has(url));
+    if(!urls.length) return;
+    const signature=urls.slice(0,30).sort().join("|");
+    if(!force && signature===watch.lastSignature) return;
+    watch.lastSignature=signature;
+    browser.runtime.sendMessage({type:"MEDIA_SIGNAL", urls:urls.slice(0,40)})
+      .catch(()=>{});
+  }
+  let mediaSignalScheduled=false;
+  function mediaChanged() {
+    if(!watch.enabled || mediaSignalScheduled) return;
+    mediaSignalScheduled=true;
+    queueMicrotask(()=>{
+      mediaSignalScheduled=false;
+      try{signalMediaChange();}catch(_){}
+    });
+  }
+  const mediaObserver=new MutationObserver(mutations=>{
+    if(!watch.enabled) return;
+    if(mutations.some(m=>m.type==="childList" ||
+      ["src","href","data-src","poster"].includes(m.attributeName))) mediaChanged();
+  });
+  mediaObserver.observe(document.documentElement,{
+    subtree:true,childList:true,attributes:true,
+    attributeFilter:["src","href","data-src","poster"]
+  });
+  document.addEventListener("visibilitychange",mediaChanged);
+  window.addEventListener("pageshow",mediaChanged);
+  window.addEventListener("scroll",mediaChanged,{passive:true});
+  function wakeLatestResult() {
+    if(!watch.enabled) return;
+    if(Date.now()-watch.lastPoke<5000) return;
+    watch.lastPoke=Date.now();
+    // fal.ai places newest generations at the top of the result timeline;
+    // bring that area into the viewport so lazy media elements can mount.
+    const root=document.scrollingElement || document.documentElement;
+    if(root && root.scrollTop>0) root.scrollTop=0;
+    const scrolls=[...document.querySelectorAll("main,section,[role='main']")].filter(el=>{
+      try {return el.scrollHeight>el.clientHeight+80 &&
+        getComputedStyle(el).overflowY!=="visible";}catch(_){return false;}
+    });
+    for(const el of scrolls.slice(0,3)) if(el.scrollTop>0) el.scrollTop=0;
+    mediaChanged();
+  }
   function showOverlay(message) {
     const id="klaus-auto-video-picker";
     document.getElementById(id)?.remove();
@@ -187,6 +236,22 @@
   }
   browser.runtime.onMessage.addListener(async msg => {
     switch(msg.op) {
+    case "WATCH_MEDIA": {
+      watch.enabled=true;
+      watch.baseline=new Set(Array.isArray(msg.baseline)?msg.baseline:[]);
+      watch.lastSignature="";
+      watch.lastPoke=0;
+      signalMediaChange(true);
+      return {ok:true};
+    }
+    case "UNWATCH_MEDIA": {
+      watch.enabled=false;
+      return {ok:true};
+    }
+    case "WAKE_RESULTS": {
+      wakeLatestResult();
+      return {ok:true,visibility:document.visibilityState};
+    }
     case "AUTOMARK": {
       const p=pickPrompt(), r=pickRun();
       return {
