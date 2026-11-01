@@ -32,7 +32,7 @@ s=socket.socket()
 try:
     s.bind(("127.0.0.1", 5903))
 except OSError as exc:
-    print("[KLAUS VNC] Porta 5902 ocupada: "+str(exc), file=sys.stderr)
+    print("[KLAUS VNC] Porta 5903 ocupada: "+str(exc), file=sys.stderr)
     sys.exit(1)
 finally:
     s.close()
@@ -61,9 +61,9 @@ if ! test -s "$HOME/.vnc/passwd"; then
 fi
 chmod 600 "$HOME/.vnc/passwd"
 
-log 'Iniciando servidor TigerVNC local :3 (127.0.0.1:5902)...'
+log 'Iniciando servidor TigerVNC local :3 (127.0.0.1:5903)...'
 log 'Nenhuma mudanca no servidor do robo em :0 ou porta CDP 9261.'
 vncserver :3 -localhost -geometry 1600x720 -depth 24 \
   -SecurityTypes VncAuth -xstartup "$ROOT/scripts/plasma/vnc-session.sh"
-log 'Servidor iniciado. Conecte um visualizador VNC a 127.0.0.1:5902.'
+log 'Servidor iniciado. Conecte um visualizador VNC a 127.0.0.1:5903.'
 log 'Se nao abrir o desktop, envie o final do log em ~/.vnc/ e nao reinicie o robo.'
