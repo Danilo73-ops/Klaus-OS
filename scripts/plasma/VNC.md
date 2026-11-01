@@ -25,3 +25,15 @@ Para visualizar no Android, conectar um visualizador VNC a 127.0.0.1:5903 (ou ao
 Use os logs produzidos em ~/.vnc/; por exemplo, `tail -n 40 ~/.vnc/localhost:3.log`.
 
 A interface VNC roda independentemente do aplicativo Android Termux:X11, embora ambos compartilhem CPU e RAM do aparelho.
+
+## Visual Klaus OS V1, enquanto o VNC :3 esta aberto
+
+```bash
+cd "$HOME/Klaus-OS" && git pull --ff-only && bash -n scripts/plasma/apply-theme.sh && bash scripts/plasma/apply-theme.sh
+```
+
+O script localiza **somente o plasmashell com DISPLAY=:3**, valida o endereco DBus e exige que o Plasma use a pasta isolada `~/.local/share/klaus-os/vnc/config`. Se nao encontrar esse ambiente, recusa alteracoes sem tocar na sessao do robo.
+
+Aplica um wallpaper azul gerado offline, tema BreezeDark (quando disponivel), painel inferior de 54 pixels e centraliza o conjunto inicial de aplicativos com espacadores. **Nao remove applets, janelas, icones nem arquivos existentes**. Grava um backup da configuracao KDE em `~/.local/share/klaus-os/backups/plasma-vnc-theme-...` antes da primeira alteracao.
+
+Ao aplicar pela primeira vez, confira o resultado no AVNC. A implantacao da UI nao depende da API fal.ai nem dispara geracoes ou downloads.
