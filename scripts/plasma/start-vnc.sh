@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash / scripts/plasma/start-vnc.sh / Termux Bash / isolated KDE Plasma TigerVNC :2
+# Bash / scripts/plasma/start-vnc.sh / Termux Bash / isolated KDE Plasma TigerVNC :3
 set -Eeuo pipefail
 DATA="$HOME/.local/share/klaus-os"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -14,18 +14,23 @@ fi
 test -x "$ROOT/scripts/plasma/vnc-session.sh" || fail 'vnc-session.sh ausente ou nao executavel.'
 
 # Do not terminate any X11 server or the robot. Confirm the new display and RFB port.
-if pgrep -af '[X]vnc' | grep -Eq '(^|[[:space:]]):2([[:space:]]|$)'; then
-  log 'Ja existe Xvnc em :2. Nada foi alterado.'
+if pgrep -af '[X]vnc' | grep -Eq '(^|[[:space:]]):3([[:space:]]|$)'; then
+  log 'Ja existe Xvnc em :3. Nada foi alterado.'
   exit 0
 fi
-for socket in "$PREFIX/tmp/.X11-unix/X2" "$TMPDIR/.X11-unix/X2"; do
-  if test -S "$socket"; then fail "Display :2 ocupado: $socket"; fi
+# :2 has a lock with an unverifiable PID. Leave both its lock and socket untouched.
+# Refuse any collision on the new display :3 rather than modifying global X11 files.
+for lock in "$PREFIX/tmp/.X3-lock" "$TMPDIR/.X3-lock"; do
+  if test -e "$lock"; then fail "Display :3 possui lock: $lock. Nenhum arquivo foi alterado."; fi
+done
+for socket in "$PREFIX/tmp/.X11-unix/X3" "$TMPDIR/.X11-unix/X3"; do
+  if test -e "$socket" || test -S "$socket"; then fail "Display :3 ocupado: $socket"; fi
 done
 python3 - <<'PY'
 import socket, sys
 s=socket.socket()
 try:
-    s.bind(("127.0.0.1", 5902))
+    s.bind(("127.0.0.1", 5903))
 except OSError as exc:
     print("[KLAUS VNC] Porta 5902 ocupada: "+str(exc), file=sys.stderr)
     sys.exit(1)
@@ -56,9 +61,9 @@ if ! test -s "$HOME/.vnc/passwd"; then
 fi
 chmod 600 "$HOME/.vnc/passwd"
 
-log 'Iniciando servidor TigerVNC local :2 (127.0.0.1:5902)...'
+log 'Iniciando servidor TigerVNC local :3 (127.0.0.1:5902)...'
 log 'Nenhuma mudanca no servidor do robo em :0 ou porta CDP 9261.'
-vncserver :2 -localhost -geometry 1600x720 -depth 24 \
+vncserver :3 -localhost -geometry 1600x720 -depth 24 \
   -SecurityTypes VncAuth -xstartup "$ROOT/scripts/plasma/vnc-session.sh"
 log 'Servidor iniciado. Conecte um visualizador VNC a 127.0.0.1:5902.'
 log 'Se nao abrir o desktop, envie o final do log em ~/.vnc/ e nao reinicie o robo.'
