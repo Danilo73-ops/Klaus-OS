@@ -64,3 +64,17 @@ Para evitar geração repetida ao continuar o mesmo lote:
 5. A fila comprovada continua sequencial: enviar → aguardar a renderização → baixar → avançar. O modo de envio paralelo a cada 3 segundos ainda não foi validado e não está ligado automaticamente.
 
 **Destino real confirmado:** `$HOME/Downloads/KLAUS AUT. FLUX MAX/ESPANHOL/` é a pasta-base atual do Firefox Linux no Termux. O arquivo teste e o MP4 foram salvos lá. Ao final, é possível copiar sem remover os originais para `/storage/emulated/0/Download/KLAUS AUT. FLUX MAX/ESPANHOL/`, preservando vídeos existentes. A verificação da extensão confirma a subpasta `ESPANHOL`, mas o arquivo pode estar no armazenamento privado do Termux. Não confunda um teste de subpasta aprovado com acesso aos Downloads compartilhados do Android.
+
+## Monitoramento com o AVNC minimizado
+
+Depois que o primeiro vídeo foi comprovado por `ffprobe`, o usuário observou que o Sandbox só atualizava a prévia quando voltava manualmente à aba. O Firefox pode reduzir timers e adiar renderização de abas inativas. A partir desta versão, **Iniciar** e **Retomar** selecionam automaticamente a aba `fal.ai/sandbox`; durante a espera da mídia, o monitor volta a selecioná-la se estiver em outra aba. Se o Sandbox informar `document.hidden`, o monitor tenta reativar a janela Firefox sem recarregar o site. A aba Klaus Auto Video pode ser consultada, mas o monitor pode retornar ao Sandbox para manter o vídeo ativo.
+
+**Importante:** isso melhora o processamento de abas em segundo plano, mas não garante execução contínua se o Android matar ou suspender o processo Termux/Firefox. Não abre uma nova sessão, não interrompe o robô FLUX MAX :0, não altera a fila, não repete prompt e não gera fora da ação do usuário.
+
+**Aplicação da atualização sem perder trabalhos em andamento:**
+1. `git pull --ff-only` apenas atualiza os arquivos no disco.
+2. O código novo só entra em vigor depois de `Reload` no `about:debugging`.
+3. Se a extensão estiver **Executando**, não use `Reload` direto. Aguarde um ponto seguro no painel e acione **Pausar**; certifique-se que não está na fase "Enviando". Confirme que o JSON de progresso foi exportado (contém prompts e situação da fila).
+4. `Reload` no Firefox carrega a versão nova sem apagar o armazenamento `browser.storage.local`. Abra novamente o painel e confirme a posição, a quantidade de baixados e o status.
+5. Se o trabalho atual estiver em "Gerando" ou "Baixando", use **Retomar** e a extensão continuará acompanhando o mesmo item, sem clicar novamente em Run. Se estiver em "Revisar", confira primeiro a situação na fal.ai e não reenvie sem certeza.
+6. Ao iniciar ou retomar, o Firefox selecionará o Sandbox automaticamente. Pode-se minimizar o visualizador AVNC do Android, mas manter Termux, VNC e Firefox abertos.
