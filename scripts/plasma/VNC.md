@@ -1,28 +1,27 @@
 # Klaus OS Plasma | Sessao independente via TigerVNC
 
-O Termux:X11 instalado no aparelho rejeita uma segunda conexao de servidor X11 enquanto o robo opera em :0. Nao tente iniciar um segundo termux-x11; isso gera "already has an active X server connection".
+O Termux:X11 instalado no aparelho rejeita abrir outro servidor enquanto o robo opera em :0.
 
-## Solucao
+## Organizacao
 
-- Robo: servidor Termux:X11 :0, Chrome com porta CDP 9261, processos intactos.
-- Klaus OS: servidor TigerVNC independente :2, porta localhost 5902, KDE Plasma X11 e sessao D-Bus separada.
-- O KDE usa configuracoes isoladas em ~/.local/share/klaus-os/vnc/.
-- Para visualizar: um aplicativo VNC Viewer Android em 127.0.0.1:5902. Um portal web no navegador pode ser adicionado depois com noVNC.
+- Robo FLUX MAX: Termux:X11 :0, Chromium via CDP 9261, nenhum processo interrompido.
+- Klaus OS: TigerVNC :3, porta TCP 5903 restrita a localhost, KDE Plasma e configuracoes isoladas.
+- O display :2 ficou com lock cujo PID nao e verificavel pelo Termux. Nunca modificar nem remover esse lock automaticamente.
 
 ## Iniciar
 
-    cd "$HOME/Klaus-OS" && git pull --ff-only && bash -n scripts/plasma/start-vnc.sh && bash scripts/plasma/start-vnc.sh
+```bash
+cd "$HOME/Klaus-OS" && git pull --ff-only && bash -n scripts/plasma/start-vnc.sh && bash scripts/plasma/start-vnc.sh
+```
 
-Na primeira execucao, o script pode instalar tigervnc (sem remover pacotes) e solicitar senha VNC. Digite-a apenas no terminal, nao envie a senha no chat.
+Se :3 ja estiver ocupado, o inicializador para sem alterar arquivos de outro processo. O programa nao usa kill nem reinicia o robo.
 
-## Operacao
+Na primeira execucao, o script pode instalar TigerVNC e solicitar senha VNC. Nao compartilhe a senha no chat.
 
-Nao use comandos globais de kill. O script nao para nenhum processo. Se o display :2 ou a porta 5902 estiverem ocupados, ele se recusa a iniciar outro servidor.
+Para visualizar no Android, conectar um visualizador VNC a 127.0.0.1:5903 (ou ao display :3). No futuro, pode-se oferecer noVNC no navegador, quando Plasma estiver confirmado funcional.
 
-A visualizacao VNC e local; acesso pela rede nao foi habilitado. O Firefox e sua extensao serao configurados apos confirmar KDE funcional.
+## Diagnostico
 
-Para investigar erros veja os logs no diretorio ~/.vnc/.
+Use os logs produzidos em ~/.vnc/; por exemplo, `tail -n 40 ~/.vnc/localhost:3.log`.
 
-## Limitacoes
-
-VNC usa processamento adicional e o KDE pode precisar de desativacao de compositor. No Android, o navegador pode suspender quando o app vai ao segundo plano. O servidor VNC independe do aplicativo Termux:X11.
+A interface VNC roda independentemente do aplicativo Android Termux:X11, embora ambos compartilhem CPU e RAM do aparelho.
