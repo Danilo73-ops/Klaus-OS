@@ -187,6 +187,29 @@ async function handle(msg, sender) {
     state.calibration[msg.kind] = msg.selector;log("Elemento marcado: "+msg.kind);
     await persist();return {ok:true};
   }
+  case "TEST_FOLDER": {
+    if (state.status==="running") throw Error("Teste de pasta indisponível com o lote executando.");
+    const sample="KLAUS AUTO VIDEO\\nTeste de pasta do Firefox. Nao e um video. Nenhum credito gasto.\\n";
+    const downloadId=await browser.downloads.download({
+      url:"data:text/plain;charset=utf-8,"+encodeURIComponent(sample),
+      filename:"KLAUS AUT. FLUX MAX/ESPANHOL/klaus_ext_teste_destino.txt",
+      conflictAction:"uniquify",saveAs:false
+    });
+    let result=null;
+    for(let n=0;n<24;n++) {
+      await delay(450);
+      const found=await browser.downloads.search({id:downloadId});
+      if(found.length && found[0].state==="complete"){result=found[0];break;}
+      if(found.length && found[0].state==="interrupted")throw Error("Download de teste falhou: "+(found[0].error||"desconhecido"));
+    }
+    if(!result)throw Error("Download de teste ainda nao terminou. Veja o gerenciador de downloads do Firefox.");
+    const path=(result.filename||"").replace(/\\/g,"/");
+    const correct=/(?:^|\\/)(?:Download|Downloads)\\/KLAUS AUT\\. FLUX MAX\\/ESPANHOL\\/klaus_ext_teste_destino(?: \\(\\d+\\))?\\.txt$/i.test(path);
+    if(correct)log("Pasta ESPANHOL verificada pelo download de teste: "+path);
+    else log("Pasta do Firefox nao corresponde ao Download do Android: "+path);
+    await persist();
+    return {ok:correct,path,note:correct?"Pasta correta. O teste TXT ficou salvo.":"Altere a pasta-base do Firefox para /storage/emulated/0/Download e teste novamente."};
+  }
   case "FREE_ONLY": {if(state.status==="running")throw Error("Pause antes de alterar.");state.freeOnly=!!msg.value;await persist();return {ok:true};}
   case "START": {
     if (!state.prompts.length) throw Error("Carregue os prompts.");
