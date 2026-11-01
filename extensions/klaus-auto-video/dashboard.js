@@ -75,6 +75,15 @@ async function refresh() {
 }
 $("openSite").onclick=()=>action("OPEN_SITE",{},"Sandbox aberto.");
 $("bind").onclick=()=>action("BIND",{},"Aba do Sandbox vinculada.");
+$("testFolder").onclick=async()=>{
+  try {
+    const result=await api("TEST_FOLDER");
+    msg((result.ok?"✅ Pasta ESPANHOL confirmada!":"⚠ Destino incorreto.")+"\n"+
+      (result.path||"")+"\n"+(result.note||""),!result.ok);
+    const snapshot=await api("GET");
+    show(snapshot);
+  }catch(_){}
+};
 for(const [id,kind] of [["pickPrompt","prompt"],["pickRun","run"]]) {
   $(id).onclick=()=>action("PICK",{kind},"Agora clique no "+(kind==="prompt"?"campo Prompt":"botão Run")+" na aba do Sandbox.");
 }
