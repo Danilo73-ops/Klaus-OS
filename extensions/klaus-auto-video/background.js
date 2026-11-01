@@ -178,6 +178,7 @@ async function handle(msg, sender) {
   case "OPEN_PANEL": { await browser.tabs.create({url:browser.runtime.getURL("dashboard.html")}); return {ok:true}; }
   case "LOAD": {
     if (state.status === "running" || state.inFlight) throw Error("Existe uma geração em andamento ou para revisão. Não sobrescreva a fila.");
+    if (state.prompts.some(p=>p.status==="done")) throw Error("Já existe vídeo concluído. Use o botão Acrescentar, não Salvar fila, para não repetir o vídeo 01.");
     if (!Array.isArray(msg.prompts) || msg.prompts.length < 1 || msg.prompts.length > 25) throw Error("Envie de 1 a 25 prompts.");
     const texts=msg.prompts.map(s => String(s || "").trim());
     if (texts.some(s=>!s || s.length > 20000)) throw Error("Prompt vazio ou maior que 20.000 caracteres.");
