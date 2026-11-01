@@ -204,7 +204,12 @@ async function handle(msg, sender) {
     }
     if(!result)throw Error("Download de teste ainda nao terminou. Veja o gerenciador de downloads do Firefox.");
     const path=(result.filename||"").replace(/\\/g,"/");
-    const correct=/(?:^|\\/)(?:Download|Downloads)\\/KLAUS AUT\\. FLUX MAX\\/ESPANHOL\\/klaus_ext_teste_destino(?: \\(\\d+\\))?\\.txt$/i.test(path);
+    const chunks=path.toLowerCase().split("/").filter(Boolean);
+    const root=chunks.findIndex(x=>x==="download"||x==="downloads");
+    const correct=root>=0 && chunks[root+1]==="klaus aut. flux max" &&
+      chunks[root+2]==="espanhol" &&
+      (chunks[root+3]||"").startsWith("klaus_ext_teste_destino") &&
+      (chunks[root+3]||"").endsWith(".txt");
     if(correct)log("Pasta ESPANHOL verificada pelo download de teste: "+path);
     else log("Pasta do Firefox nao corresponde ao Download do Android: "+path);
     await persist();
