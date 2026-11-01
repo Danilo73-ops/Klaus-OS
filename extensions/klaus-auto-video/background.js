@@ -113,7 +113,7 @@ async function processQueue() {
         try {
           id = await browser.downloads.download({
             url:result.url,
-            filename:"KlausAutoVideo/video-" + String(index + 1).padStart(2,"0") + ".mp4",
+            filename:"KLAUS AUT. FLUX MAX/ESPANHOL/klaus_ext_es_" + String(index + 1).padStart(2,"0") + ".mp4",
             conflictAction:"uniquify", saveAs:false
           });
         } catch (e) { throw Error("Falha ao iniciar download do vídeo: " + e.message); }
@@ -124,7 +124,16 @@ async function processQueue() {
         if (!Number.isInteger(flight.downloadId)) throw Error("Download foi preparado, mas ID não foi confirmado. Verifique a pasta Downloads.");
         const download = await awaitDownload(flight.downloadId);
         if (!download) return;
-        item.status = "done"; item.filename = download.filename || ""; item.videoUrl = flight.videoUrl;
+        // Firefox resolves relative filenames under its own configured download folder.
+        // Require that the completed file is actually under the requested ESPANHOL folder.
+        const savedTo = (download.filename || "").replace(/\\/g, "/");
+        const expected = /\/(?:Download|Downloads|downloads)\/KLAUS AUT\. FLUX MAX\/ESPANHOL\/klaus_ext_es_\d+\.mp4$/i;
+        if (!expected.test(savedTo)) {
+          item.filename = savedTo; item.videoUrl = flight.videoUrl;
+          throw Error("Download terminado fora da pasta ESPANHOL: " + savedTo +
+            ". Configure Downloads do Firefox para /storage/emulated/0/Download, mova o arquivo e confirme manualmente. Nao sera baixado novamente.");
+        }
+        item.status = "done"; item.filename = savedTo; item.videoUrl = flight.videoUrl;
         item.error = null; item.finishedAt = Date.now();
         state.history.push({index,filename:item.filename,finishedAt:item.finishedAt});
         log("Baixado " + (index+1) + "/" + state.prompts.length + ": " + item.filename);
