@@ -158,14 +158,14 @@ $("importFile").onchange=async event=>{
       (missing+1)+". Nada foi alterado.");
     const prior=await api("GET");
     if(prior.prompts?.length && !(prior.status==="complete" &&
-      prior.cursor===prior.prompts.length && prior.prompts.every(p=>p.status==="done")))
+      prior.cursor===prior.prompts.length && prior.prompts.every(p=>["done","skipped"].includes(p.status))))
       throw Error("O lote anterior não está 100% concluído. Arquive ou conclua pendências antes de importar outro.");
     if(prior.prompts?.length===25 && prior.prompts.every((p,i)=>p.text===prompts[i]))
       throw Error("Você selecionou os mesmos 25 prompts do lote anterior. Escolha o arquivo NOVO.");
     const notice=prior.prompts?.length
       ? "O lote anterior concluído será arquivado automaticamente em JSON. Nenhum vídeo será apagado."
       : "O lote novo ficará pronto para iniciar.";
-    if(!confirm("Importar "+prompts.length+" prompts de "+selected.name+"?\\n"+notice+
+    if(!confirm("Importar "+prompts.length+" prompts de "+selected.name+"?\n"+notice+
       "\\nNenhuma geração será enviada até você clicar em Iniciar lote."))return;
     msg("Validando arquivo e arquivando o lote anterior; nenhuma geração será enviada.");
     const result=await api("NEW_BATCH_IMPORT",{prompts});
