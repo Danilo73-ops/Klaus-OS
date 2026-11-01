@@ -93,6 +93,13 @@
     const costs=[...text.matchAll(/(?:\$|USD\s*)(\d+(?:\.\d+)?)/gi)].map(m=>Number(m[1]));
     return free && !costs.some(n=>n>0);
   }
+  function selectedOperation() {
+    // Check the operation selected in the Sandbox editor, not items in a hidden menu.
+    const labels=buttons().map(b=>runLabel(b)).filter(t=>t.length<100);
+    const chosen=labels.find(t=>/\bText\s*To\s*(Video|Image)\b/i.test(t));
+    if (!chosen) return "unknown";
+    return /\bText\s*To\s*Video\b/i.test(chosen) ? "video" : "image";
+  }
   function modelCount(run) {
     const t=run?runContext(run):"";
     const matches=[...t.matchAll(/\b(\d+)\s+models?\b/gi)];
@@ -172,12 +179,13 @@
     case "SCAN": {
       const p=q(msg.calibration?.prompt)||pickPrompt();
       const r=q(msg.calibration?.run)||pickRun();
-      return {promptFound:!!p,runFound:!!r,free:pricingFree(r),modelCount:modelCount(r),videos:scanVideos(),priceHint:r?runContext(r).slice(-180):""};
+      return {promptFound:!!p,runFound:!!r,operation:selectedOperation(),free:pricingFree(r),modelCount:modelCount(r),videos:scanVideos(),priceHint:r?runContext(r).slice(-180):""};
     }
     case "FILL": {fillPrompt(promptElement(msg.selector),msg.text);return {ok:true};}
     case "READ_PROMPT": return {text:inputValue(promptElement(msg.selector))};
     case "RUN": {
       const b=runElement(msg.selector);
+      if(selectedOperation() !== "video") throw Error("Operação diferente de Text To Video. Nada foi enviado.");
       if(msg.requireFree&&!pricingFree(b)) throw Error("Custo grátis não confirmado perto de Run.");
       if(b.disabled || b.getAttribute("aria-disabled")==="true") throw Error("Botão Run desabilitado.");
       b.click();
