@@ -185,6 +185,22 @@ async function handle(msg, sender) {
     state.cursor=0;state.inFlight=null;state.status="idle";state.history=[];
     log("Fila carregada: "+texts.length+" prompts.");await persist();return {ok:true};
   }
+  case "AUTO_MARK": {
+    if (state.status==="running") throw Error("Pause antes de recalibrar.");
+    await ensureTab();
+    const detected=await sendTab("AUTOMARK");
+    if (!detected.prompt || !detected.run) {
+      throw Error("Não identifiquei os dois controles. Marque o Prompt e o Run manualmente.");
+    }
+    if (detected.operation!=="video") {
+      throw Error("O Sandbox ainda não está em Text To Video. Nada foi alterado.");
+    }
+    state.calibration={prompt:detected.prompt,run:detected.run};
+    log("Campo Prompt e botão Run detectados sem gerar vídeo. Modelo(s): "+detected.modelCount);
+    await persist();
+    return {ok:true,operation:detected.operation,free:detected.free,
+      modelCount:detected.modelCount,promptLabel:detected.promptLabel,runLabel:detected.runLabel};
+  }
   case "PICK": {
     await ensureTab();
     return sendTab("PICK", {kind:msg.kind});
