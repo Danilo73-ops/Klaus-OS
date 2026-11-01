@@ -37,6 +37,8 @@ jobs:
           node --check extensions/klaus-auto-video/background.js
           node --check extensions/klaus-auto-video/content.js
           node --check extensions/klaus-auto-video/dashboard.js
+          node --check extensions/klaus-auto-video/prompt-parser.js
+          node extensions/klaus-auto-video/test-prompt-parser.cjs
           python3 - <<'PY'
           import json
           from pathlib import Path
