@@ -185,6 +185,48 @@ async function handle(msg, sender) {
     state.cursor=0;state.inFlight=null;state.status="idle";state.history=[];
     log("Fila carregada: "+texts.length+" prompts.");await persist();return {ok:true};
   }
+  case "APPEND_REMAINING": {
+    // Keep the completed first batch and its video on disk. Never reset cursor/history.
+    if (state.status !== "complete" || state.inFlight ||
+        state.cursor !== state.prompts.length ||
+        state.prompts.some(p => p.status !== "done")) {
+      throw Error("Acrescente apenas depois que o lote anterior terminar sem pendências.");
+    }
+    if (!state.prompts.length || state.prompts.length >= 25) {
+      throw Error("Não existem posições disponíveis para acrescentar.");
+    }
+    const existing = state.prompts.length;
+    if (!Array.isArray(msg.prompts) || !msg.prompts.length ||
+        msg.prompts.length > 25 - existing) {
+      throw Error("Envie até " + (25-existing) + " prompts restantes.");
+    }
+    const texts = msg.prompts.map(v => String(v || "").trim());
+    if (texts.some(v => !v || v.length > 20000))
+      throw Error("Há um prompt vazio ou longo demais.");
+    const heading = /^PROMPT\s+(\d{1,2})\s*[-–—:.]/i;
+    const previous = state.prompts.map(p => p.text.trim());
+    const seen = new Set(previous);
+    texts.forEach((value, n) => {
+      const number = existing + n + 1;
+      const hit = value.match(heading);
+      if (!hit || Number(hit[1]) !== number) {
+        throw Error("O novo prompt " + (n+1) + " deve começar por PROMPT " +
+          String(number).padStart(2, "0") + " —. Não alterei a fila.");
+      }
+      if (seen.has(value)) throw Error("Prompt duplicado detectado: " + number);
+      seen.add(value);
+    });
+    // Only after full validation, atomically extend the persisted queue.
+    texts.forEach((text,n) => state.prompts.push({
+      id:existing+n, text, status:"waiting"
+    }));
+    state.status="idle";
+    log("Acrescentados " + texts.length + " prompts: posições " +
+      (existing+1) + " a " + state.prompts.length +
+      ". Os " + existing + " anteriores permanecem concluídos.");
+    await persist();
+    return {ok:true,total:state.prompts.length,completed:existing,next:state.cursor+1};
+  }
   case "AUTO_MARK": {
     if (state.status==="running") throw Error("Pause antes de recalibrar.");
     await ensureTab();
