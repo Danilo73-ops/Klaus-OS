@@ -88,6 +88,9 @@ async function processQueue() {
       if (!flight) {
         const baseline = await sendTab("SCAN", {calibration: state.calibration});
         if (!baseline.promptFound || !baseline.runFound) throw Error("Campo do prompt ou botão Run não encontrado. Calibre os dois na página.");
+        if (baseline.operation !== "video") {
+          throw Error("Sandbox não está em Text To Video. Selecione Text To Video antes de iniciar; nada foi enviado.");
+        }
         if (baseline.modelCount > 1) throw Error("Mais de um modelo detectado. Deixe apenas um modelo de vídeo selecionado.");
         if (state.freeOnly && baseline.free !== true) {
           throw Error("A interface não confirma custo grátis no controle Run. Sem clicar para evitar cobrança.");
