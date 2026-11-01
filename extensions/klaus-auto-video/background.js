@@ -196,20 +196,28 @@ async function handle(msg, sender) {
   }
   case "TEST_FOLDER": {
     if (state.status==="running") throw Error("Teste de pasta indisponível com o lote executando.");
-    const sample="KLAUS AUTO VIDEO\\nTeste de pasta do Firefox. Nao e um video. Nenhum credito gasto.\\n";
-    const downloadId=await browser.downloads.download({
-      url:"data:text/plain;charset=utf-8,"+encodeURIComponent(sample),
-      filename:"KLAUS AUT. FLUX MAX/ESPANHOL/klaus_ext_teste_destino.txt",
-      conflictAction:"uniquify",saveAs:false
-    });
+    // Firefox blocks data: URLs in downloads.download. Mozilla recommends
+    // a blob: URL created by the extension background page instead.
+    const sample="KLAUS AUTO VIDEO\nTeste de pasta do Firefox. Nao e um video. Nenhum credito gasto.\n";
+    const testBlob = new Blob([sample], {type:"text/plain;charset=utf-8"});
+    const testUrl = URL.createObjectURL(testBlob);
     let result=null;
-    for(let n=0;n<24;n++) {
-      await delay(450);
-      const found=await browser.downloads.search({id:downloadId});
-      if(found.length && found[0].state==="complete"){result=found[0];break;}
-      if(found.length && found[0].state==="interrupted")throw Error("Download de teste falhou: "+(found[0].error||"desconhecido"));
+    try {
+      const downloadId=await browser.downloads.download({
+        url:testUrl,
+        filename:"KLAUS AUT. FLUX MAX/ESPANHOL/klaus_ext_teste_destino.txt",
+        conflictAction:"uniquify",saveAs:false
+      });
+      for(let n=0;n<24;n++) {
+        await delay(450);
+        const found=await browser.downloads.search({id:downloadId});
+        if(found.length && found[0].state==="complete"){result=found[0];break;}
+        if(found.length && found[0].state==="interrupted")throw Error("Download de teste falhou: "+(found[0].error||"desconhecido"));
+      }
+      if(!result)throw Error("Download de teste ainda nao terminou. Veja o gerenciador de downloads do Firefox.");
+    } finally {
+      URL.revokeObjectURL(testUrl);
     }
-    if(!result)throw Error("Download de teste ainda nao terminou. Veja o gerenciador de downloads do Firefox.");
     const path=(result.filename||"").replace(/\\/g,"/");
     const chunks=path.toLowerCase().split("/").filter(Boolean);
     const root=chunks.findIndex(x=>x==="download"||x==="downloads");
