@@ -88,3 +88,21 @@ Depois que o primeiro vídeo foi comprovado por `ffprobe`, o usuário observou q
 **Limitação real:** só é possível detectar mídia que fal.ai expôs no DOM ou nas URLs dos vídeos; caso a página não busque/monte o resultado até ser reativada, uma extensão que depende do DOM não consegue assegurar funcionamento totalmente independente. A otimização **não converteu o lote em envios paralelos**. Um modo paralelo exigiria mapear cada job ao vídeo certo e testar a quota antes do uso.
 
 **Como aplicar sem perder a fila:** não reinicie o Firefox ou a extensão em `Enviando`. Clique **Pausar** depois que um job indicar `Gerando` ou `Baixando`, confirme que está pausado e mantenha seu JSON de backup. Atualize `git pull --ff-only`, use `Reload` em `about:debugging`, volte ao painel e confirme a posição antes de clicar **Retomar**. Uma atualização dos arquivos do GitHub por si só não altera a extensão que já está em execução.
+
+## Importação sem digitar pelo AVNC (novo lote de 25)
+
+Depois que o lote anterior concluiu, a tela mostra **📥 Importar + preparar NOVO lote (25)**.
+
+1. Coloque o arquivo `.json` (objeto `{"prompts":["PROMPT 01 — ...",...,"PROMPT 25 — ..."]}`) ou `.txt` (25 blocos iniciados por `PROMPT 01 —` a `PROMPT 25 —`) nos **Downloads do Android**.
+2. Na janela de seleção de arquivos do **Firefox Linux no AVNC**, abra **Home → storage → downloads**. Isso funciona quando o Termux recebeu permissão para acesso ao armazenamento compartilhado (`termux-setup-storage`). Também é possível escolher arquivo da pasta Linux `~/Downloads`.
+3. Clique no arquivo uma única vez. O JavaScript do Firefox o lê e valida **instantaneamente**, sem colar 25 roteiros nem simular digitação de teclado pelo VNC.
+4. O painel mostra a confirmação antes de alterar qualquer fila. Com o lote anterior concluído, a extensão salva um arquivo de progresso em **`~/Downloads/KLAUS AUT. FLUX MAX/ESPANHOL/Backups/klaus_lote_NN_progresso.json`**, arquiva uma cópia no armazenamento privado da extensão e então prepara o lote novo.
+5. Verifique que aparece **25 na fila, 0 baixados, 1/25**. Abra `fal.ai/sandbox`, mantenha o formulário Text To Video expandido, selecione um modelo com indicação Free, 15s e 9:16, confirme a conta e a quota livre, e clique **▶ Iniciar lote**. A importação nunca inicia uma geração por conta própria.
+6. Os MP4 ficam na mesma pasta do Firefox, com nomes próprios por lote: `klaus_ext_es_lote02_01.mp4` a `klaus_ext_es_lote02_25.mp4`, sem sobrescrever os anteriores. Continue usando `conflictAction: uniquify`.
+
+O preenchimento automático do campo no Sandbox já usa o setter nativo JavaScript com eventos `input`/`change`, não uma sequência de teclas. O que demorava era colar milhares de caracteres **manualmente através do VNC**. A importação pelo navegador elimina essa etapa.
+
+**Segurança:** só é permitido substituir a fila quando a anterior terminou e não possui geração em andamento, revisões ou downloads pendentes. Se o arquivo não contiver exatamente 25 prompts com os números 01–25, ou se o backup não puder ser confirmado, a fila anterior permanece. Não há remoção de MP4, perfis, backups ou pastas.
+
+O Sandbox pode oferecer menos que 25 gerações gratuitas na conta atual. A importação não confere quota; a extensão ainda verifica a indicação Free antes de cada Run e para quando não a encontrar.
+
