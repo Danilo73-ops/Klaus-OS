@@ -143,9 +143,13 @@
       if(el){hover=el;hover.style.outline="3px solid #19d1ef";}
     }
     async function click(e) {
-      if(!hover)return;
+      // Touchscreen AVNC can dispatch click without a preceding pointermove.
+      const target=e.target.closest(kind==="prompt"
+        ? 'textarea,input,[role="textbox"],[contenteditable="true"]'
+        : 'button,[role="button"],input[type="submit"]');
+      if(!target)return;
       e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-      const sel=selector(hover);
+      const sel=selector(target);
       cleanup();
       try {
         const r=await browser.runtime.sendMessage({type:"PICKED",kind,selector:sel});
