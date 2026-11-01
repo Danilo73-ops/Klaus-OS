@@ -130,8 +130,15 @@ async function processQueue() {
         // Firefox resolves relative filenames under its own configured download folder.
         // Require that the completed file is actually under the requested ESPANHOL folder.
         const savedTo = (download.filename || "").replace(/\\/g, "/");
-        const expected = /\/(?:Download|Downloads|downloads)\/KLAUS AUT\. FLUX MAX\/ESPANHOL\/klaus_ext_es_\d+\.mp4$/i;
-        if (!expected.test(savedTo)) {
+        const savedParts=savedTo.toLowerCase().split("/").filter(Boolean);
+        const baseIndex=savedParts.findIndex(x=>x==="download"||x==="downloads");
+        const wantedName="klaus_ext_es_"+String(index + 1).padStart(2,"0");
+        const actualName=savedParts[baseIndex+3]||"";
+        const inSpanishFolder=baseIndex>=0 &&
+          savedParts[baseIndex+1]==="klaus aut. flux max" &&
+          savedParts[baseIndex+2]==="espanhol" &&
+          actualName.startsWith(wantedName) && actualName.endsWith(".mp4");
+        if (!inSpanishFolder) {
           item.filename = savedTo; item.videoUrl = flight.videoUrl;
           throw Error("Download terminado fora da pasta ESPANHOL: " + savedTo +
             ". Configure Downloads do Firefox para /storage/emulated/0/Download, mova o arquivo e confirme manualmente. Nao sera baixado novamente.");
