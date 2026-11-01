@@ -3,27 +3,42 @@
 const $=id=>document.getElementById(id);
 const statuses={waiting:"Aguardando",sending:"Enviando",generating:"Gerando",downloading:"Baixando",done:"Concluído",review:"Revisar",skipped:"Pulado"};
 let state=null,lastMessage="",isEditing=false;
-function getText(x) {return typeof x==="string"?x:(x && typeof x==="object"?(x.prompt||x.text||x.content||""):"");}
-function parsePrompts(raw) {
-  const text=raw.trim();if(!text)throw Error("Cole seus prompts antes de salvar.");
-  try{
-    const json=JSON.parse(text),list=Array.isArray(json)?json:json.prompts||json.items||json.jobs||json.queue;
-    if(Array.isArray(list)){
-      const items=list.map(getText).map(s=>String(s).trim()).filter(Boolean);
-      if(items.length) return items;
+// Parse numbered prompts even when Android clipboard merges all newlines.
+const parsePrompts=raw=>KlausPromptParser.parse(raw);
+const numberOf=prompt=>KlausPromptParser.numberOf(prompt);
+function renderParsePreview() {
+  const area=$("parseInfo"),raw=$("raw").value.trim();
+  if(!raw) {area.textContent="Cole os prompts para conferir quantos foram identificados.";return;}
+  try {
+    const found=KlausPromptParser.inspect(raw);
+    const labels=found.numbers.map(n=>n==null?"sem número":String(n).padStart(2,"0"));
+    const existing=state?.prompts?.length || 0;
+    const next=existing + 1;
+    const mismatch=found.numbers.findIndex((n,i)=>n!==next+i);
+    const text=found.count+" prompt(s) identificado(s): "+labels.join(", ")+".";
+    if(existing>0 && mismatch>=0) {
+      area.textContent=text+" ⚠ Esperava PROMPT "+String(next+mismatch).padStart(2,"0")+
+        " na posição "+(mismatch+1)+". Revise os blocos copiados antes de Acrescentar.";
+      area.style.color="#ffad82";
+    }else {
+      area.textContent=text+(existing?" ✅ Próximo esperado: "+String(next).padStart(2,"0")+".":"");
+      area.style.color="#69e0ca";
     }
-  }catch(_){}
-  let items;
-  if(/^\s*(?:PROMPT|V[IÍ]DEO|VIDEO)\s*0?\d+\s*(?:[-–—:.]|$)/im.test(text)) {
-    items=text.split(/(?=^\s*(?:PROMPT|V[IÍ]DEO|VIDEO)\s*0?\d+\s*(?:[-–—:.]|$))/gim).map(s=>s.trim()).filter(Boolean);
-  }else if(/^\s*(?:---+|===+)\s*$/m.test(text)) {
-    items=text.split(/^\s*(?:---+|===+)\s*$/gm).map(s=>s.trim()).filter(Boolean);
-  }else {
-    items=[text];
-  }
-  if(!items.length || items.length>25)throw Error("O lote deve conter de 1 a 25 prompts. Detectei "+items.length+".");
-  return items;
+  } catch(e){area.textContent="⚠ "+e.message;area.style.color="#ffad82";}
 }
+const DRAFT_KEY="klausAutoVideoDraftV1";
+let draftTimer=null;
+$("raw").addEventListener("input",()=>{
+  renderParsePreview();
+  clearTimeout(draftTimer);
+  draftTimer=setTimeout(()=>{
+    browser.storage.local.set({[DRAFT_KEY]:$("raw").value}).catch(()=>{});
+  },350);
+});
+browser.storage.local.get(DRAFT_KEY).then(data=>{
+  if(!$("raw").value && data[DRAFT_KEY]) $("raw").value=data[DRAFT_KEY];
+  renderParsePreview();
+}).catch(()=>{});
 function msg(text,error=false) {
   lastMessage=text;$("message").style.color=error?"#ff9a92":"#68f1c7";$("message").textContent=text;
 }
@@ -69,6 +84,7 @@ function show(s) {
   $("start").disabled=status==="running"||status==="complete";
   $("resume").disabled=status!=="paused";
   $("pause").disabled=status!=="running";
+  renderParsePreview();
 }
 async function refresh() {
   try {const s=await api("GET");show(s);}catch(_){}
@@ -106,16 +122,29 @@ $("load").onclick=()=>{
 $("append").onclick=async()=>{
   try {
     const prompts=parsePrompts($("raw").value);
-    if (!confirm("Acrescentar "+prompts.length+" prompts depois dos vídeos já baixados, sem repetir o primeiro?")) return;
+    const next=(state?.prompts?.length||0)+1;
+    const actual=prompts.map(numberOf);
+    const mismatch=actual.findIndex((n,i)=>n!==next+i);
+    if(mismatch>=0) {
+      const expected=String(next+mismatch).padStart(2,"0");
+      const received=actual[mismatch]==null?"sem título":"PROMPT "+String(actual[mismatch]).padStart(2,"0");
+      throw Error("Encontrei "+prompts.length+" blocos. Na posição "+(mismatch+1)+
+        " era esperado PROMPT "+expected+", mas apareceu "+received+
+        ". Nenhum vídeo ou histórico foi alterado.");
+    }
+    const summary=prompts.length+" prompts ("+String(actual[0]).padStart(2,"0")+
+      " até "+String(actual[actual.length-1]).padStart(2,"0")+").";
+    if(!confirm("Acrescentar "+summary+" Os vídeos concluídos serão preservados.")) return;
     const result=await api("APPEND_REMAINING",{prompts});
     await refresh();
-    msg("✅ "+prompts.length+" prompts adicionados. Próximo: "+result.next+
-      "/"+result.total+". Vídeos anteriores preservados. Clique Iniciar lote quando desejar.");
-  }catch(_){}
+    msg("✅ "+prompts.length+" prompts adicionados. Fila total: "+result.total+
+      ", baixados: "+result.completed+", próximo: "+result.next+
+      ". Os vídeos já concluídos foram preservados.");
+  }catch(e){msg("Erro: "+e.message,true);}
 };
 $("importFile").onchange=async event=>{
   const f=event.target.files?.[0];if(!f)return;
-  try{$("raw").value=await f.text();msg("Arquivo importado. Confira e clique Salvar fila.");}
+  try{$("raw").value=await f.text();$("raw").dispatchEvent(new Event("input"));msg("Arquivo importado. Confira a prévia e clique Acrescentar ou Salvar fila.");}
   catch(e){msg(e.message,true);}
 };
 $("freeOnly").onchange=event=>action("FREE_ONLY",{value:event.target.checked});
