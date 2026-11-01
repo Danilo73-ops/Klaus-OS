@@ -143,9 +143,45 @@ $("append").onclick=async()=>{
   }catch(e){msg("Erro: "+e.message,true);}
 };
 $("importFile").onchange=async event=>{
-  const f=event.target.files?.[0];if(!f)return;
-  try{$("raw").value=await f.text();$("raw").dispatchEvent(new Event("input"));msg("Arquivo importado. Confira a prévia e clique Acrescentar ou Salvar fila.");}
-  catch(e){msg(e.message,true);}
+  const selected=event.target.files?.[0];
+  if(!selected)return;
+  try {
+    // Read in native Firefox file picker; never paste huge text through AVNC.
+    const content=await selected.text();
+    const prompts=parsePrompts(content);
+    if(prompts.length!==25) throw Error(
+      "Este botão prepara 25 vídeos. O arquivo contém "+prompts.length+
+      " prompts. Nada foi modificado.");
+    const numbers=prompts.map(numberOf);
+    const missing=numbers.findIndex((n,i)=>n!==i+1);
+    if(missing>=0) throw Error("A numeração precisa ser PROMPT 01 a PROMPT 25. Falha no bloco "+
+      (missing+1)+". Nada foi alterado.");
+    const prior=await api("GET");
+    if(prior.prompts?.length && !(prior.status==="complete" &&
+      prior.cursor===prior.prompts.length && prior.prompts.every(p=>p.status==="done")))
+      throw Error("O lote anterior não está 100% concluído. Arquive ou conclua pendências antes de importar outro.");
+    if(prior.prompts?.length===25 && prior.prompts.every((p,i)=>p.text===prompts[i]))
+      throw Error("Você selecionou os mesmos 25 prompts do lote anterior. Escolha o arquivo NOVO.");
+    const notice=prior.prompts?.length
+      ? "O lote anterior concluído será arquivado automaticamente em JSON. Nenhum vídeo será apagado."
+      : "O lote novo ficará pronto para iniciar.";
+    if(!confirm("Importar "+prompts.length+" prompts de "+selected.name+"?\\n"+notice+
+      "\\nNenhuma geração será enviada até você clicar em Iniciar lote."))return;
+    msg("Validando arquivo e arquivando o lote anterior; nenhuma geração será enviada.");
+    const result=await api("NEW_BATCH_IMPORT",{prompts});
+    $("raw").value="";
+    clearTimeout(draftTimer);
+    await browser.storage.local.set({[DRAFT_KEY]:""});
+    await refresh();
+    renderParsePreview();
+    msg("✅ LOTE "+String(result.batchNo).padStart(2,"0")+" PRONTO! 25 prompts importados direto do arquivo "+
+      selected.name+". Histórico anterior "+(result.archive?"arquivado em JSON.":"sem lote anterior.")+
+      " Agora confira Free, 15s e 9:16 no Sandbox e clique em ▶ Iniciar lote.");
+  } catch(e) {
+    msg("Erro na importação: "+e.message,true);
+  } finally {
+    event.target.value="";
+  }
 };
 $("freeOnly").onchange=event=>action("FREE_ONLY",{value:event.target.checked});
 $("start").onclick=async()=>{
