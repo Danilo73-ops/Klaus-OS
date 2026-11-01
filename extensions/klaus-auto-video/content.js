@@ -203,7 +203,7 @@
     case "SCAN": {
       const p=q(msg.calibration?.prompt)||pickPrompt();
       const r=q(msg.calibration?.run)||pickRun();
-      return {promptFound:!!p,runFound:!!r,operation:selectedOperation(),free:pricingFree(r),modelCount:modelCount(r),videos:scanVideos(),priceHint:r?runContext(r).slice(-180):""};
+      return {promptFound:!!p,runFound:!!r,operation:selectedOperation(),free:pricingFree(r),modelCount:modelCount(r),videos:scanVideos(),pageHidden:document.hidden,visibility:document.visibilityState,priceHint:r?runContext(r).slice(-180):""};
     }
     case "FILL": {fillPrompt(promptElement(msg.selector),msg.text);return {ok:true};}
     case "READ_PROMPT": return {text:inputValue(promptElement(msg.selector))};
