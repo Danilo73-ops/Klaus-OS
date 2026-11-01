@@ -187,11 +187,11 @@ async function handle(msg, sender) {
     log("Fila carregada: "+texts.length+" prompts.");await persist();return {ok:true};
   }
   case "APPEND_REMAINING": {
-    // Keep the completed first batch and its video on disk. Never reset cursor/history.
-    if (state.status !== "complete" || state.inFlight ||
-        state.cursor !== state.prompts.length ||
-        state.prompts.some(p => p.status !== "done")) {
-      throw Error("Acrescente apenas depois que o lote anterior terminar sem pendências.");
+    // Preserve every already-completed job, filename and current cursor.
+    // Allow adding the remaining scripts in several copy/paste chunks while idle.
+    if (!["complete","idle"].includes(state.status) || state.inFlight ||
+        !state.prompts.every((p,i)=>i<state.cursor?p.status==="done":p.status==="waiting")) {
+      throw Error("Pause os trabalhos e resolva revisões antes de acrescentar.");
     }
     if (!state.prompts.length || state.prompts.length >= 25) {
       throw Error("Não existem posições disponíveis para acrescentar.");
@@ -211,9 +211,14 @@ async function handle(msg, sender) {
       const number = existing + n + 1;
       const hit = value.match(heading);
       if (!hit || Number(hit[1]) !== number) {
-        throw Error("O novo prompt " + (n+1) + " deve começar por PROMPT " +
-          String(number).padStart(2, "0") + " —. Não alterei a fila.");
+        throw Error("No bloco " + (n+1) + " eu esperava PROMPT " +
+          String(number).padStart(2, "0") + ", mas recebi " +
+          (hit ? "PROMPT "+hit[1] : "um texto sem título") +
+          ". Nenhum item foi acrescentado.");
       }
+      if (value.length < 100)
+        throw Error("O PROMPT "+String(number).padStart(2,"0")+
+          " parece incompleto (menos de 100 caracteres). Nenhuma alteração feita.");
       if (seen.has(value)) throw Error("Prompt duplicado detectado: " + number);
       seen.add(value);
     });
@@ -222,11 +227,12 @@ async function handle(msg, sender) {
       id:existing+n, text, status:"waiting"
     }));
     state.status="idle";
+    const doneCount=state.prompts.filter(p=>p.status==="done").length;
     log("Acrescentados " + texts.length + " prompts: posições " +
       (existing+1) + " a " + state.prompts.length +
-      ". Os " + existing + " anteriores permanecem concluídos.");
+      ". Concluídos preservados: "+doneCount+", próximo envio: "+(state.cursor+1));
     await persist();
-    return {ok:true,total:state.prompts.length,completed:existing,next:state.cursor+1};
+    return {ok:true,total:state.prompts.length,completed:doneCount,next:state.cursor+1};
   }
   case "AUTO_MARK": {
     if (state.status==="running") throw Error("Pause antes de recalibrar.");
