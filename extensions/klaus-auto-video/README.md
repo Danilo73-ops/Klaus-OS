@@ -18,7 +18,7 @@ Extensão local para **até 25 prompts** com geração sequencial na interface w
 10. Cole até 25 prompts separados por linha `---`, ou por títulos `PROMPT 01 —`, `PROMPT 02 —`, etc. Também importa `.json` com lista `prompts` e `.txt` com separadores.
 11. Clique **Salvar fila**. Confira a indicação **Free** no Sandbox e então **Iniciar lote**.
 
-O painel avança somente após o Firefox confirmar o download na pasta do robô `/storage/emulated/0/Download/KLAUS AUT. FLUX MAX/ESPANHOL/`. Se o site mudar o HTML, o envio falhar ou uma geração não for detectada, a fila pausa em revisão sem clicar em Run outra vez. Preserve os vídeos e confirme manualmente se necessário.
+O painel avança após o Firefox confirmar o download na subpasta `KLAUS AUT. FLUX MAX/ESPANHOL/` relativa à pasta-base atual do Firefox. No teste real, essa pasta-base era `$HOME/Downloads`, dentro do Termux. Se o site mudar o HTML, o envio falhar ou uma geração não for detectada, a fila pausa em revisão sem clicar em Run outra vez. Preserve os vídeos e confirme manualmente se necessário.
 
 ## Limitações técnicas atuais
 
@@ -51,3 +51,16 @@ A extensão usa nomes não conflitantes `klaus_ext_es_01.mp4` … `klaus_ext_es_
 Se a extensão detectar que o download concluído foi salvo fora de ESPANHOL, **ela pausa e não reenvia** a geração. O usuário pode mover o arquivo manualmente e confirmar o item sem perda de créditos.
 
 A própria extensão verifica operação Text To Video antes do envio. O print inicial mostrava Text To Image com 3 modelos, o que impediria a fila de 25 vídeos; altere para Text To Video e um modelo gratuito.
+
+## Continuação após o primeiro vídeo
+
+O primeiro ciclo foi validado no aparelho: `klaus_ext_es_01.mp4` com vídeo 704x1280, áudio e duração 15,04 s. A página fal.ai mostra o cartão do resultado e um ícone "Download" que aparece ao passar o mouse. A extensão já consegue baixar o MP4 **diretamente do URL de mídia detectado**, sem movimentar o mouse nem clicar repetidamente. Quando existir também link de download no cartão, o detector coleta esse URL. Um botão JS sem URL reconhecível não será clicado às cegas.
+
+Para evitar geração repetida ao continuar o mesmo lote:
+1. Depois da atualização do GitHub, carregue a extensão via `Reload` em `about:debugging` (o estado concluído é persistido no perfil do Firefox).
+2. Cole no painel apenas os prompts **02 a 25**; não cole o PROMPT 01 de novo.
+3. Use **Acrescentar prompts 02–25 sem repetir o 01**, NÃO **Salvar fila**. O painel conserva o trabalho 01 como concluído e o próximo será 02/25.
+4. Confira que a fila mostra 25, com 1 concluído e 24 pendentes. Só então clique em Iniciar.
+5. A fila comprovada continua sequencial: enviar → aguardar a renderização → baixar → avançar. O modo de envio paralelo a cada 3 segundos ainda não foi validado e não está ligado automaticamente.
+
+**Destino real confirmado:** `$HOME/Downloads/KLAUS AUT. FLUX MAX/ESPANHOL/` é a pasta-base atual do Firefox Linux no Termux. O arquivo teste e o MP4 foram salvos lá. Ao final, é possível copiar sem remover os originais para `/storage/emulated/0/Download/KLAUS AUT. FLUX MAX/ESPANHOL/`, preservando vídeos existentes. A verificação da extensão confirma a subpasta `ESPANHOL`, mas o arquivo pode estar no armazenamento privado do Termux. Não confunda um teste de subpasta aprovado com acesso aos Downloads compartilhados do Android.
