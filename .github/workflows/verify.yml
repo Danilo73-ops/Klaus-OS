@@ -30,6 +30,8 @@ jobs:
           bash -n scripts/plasma/start-xfce.sh
           bash -n scripts/plasma/start-vnc.sh
           bash -n scripts/plasma/vnc-session.sh
+          bash -n scripts/plasma/apply-theme.sh
+          node --check scripts/plasma/klaus-layout.js
           python3 -m py_compile scripts/wallpaper.py
       - name: Render and inspect wallpaper PNG
         run: |
