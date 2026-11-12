@@ -54,6 +54,7 @@ jobs:
           print("Klaus Auto Video extension structure OK")
           PY
           python3 -m py_compile scripts/wallpaper.py
+          python3 -m py_compile scripts/plasma/clipboard-bridge.py
       - name: Render and inspect wallpaper PNG
         run: |
           python3 scripts/wallpaper.py /tmp/klaus-os-11.png
