@@ -55,6 +55,8 @@ jobs:
           PY
           python3 -m py_compile scripts/wallpaper.py
           python3 -m py_compile scripts/plasma/clipboard-bridge.py
+          node --check scripts/plasma/clipboard-bridge-ui.js
+          node scripts/plasma/test-clipboard-batch.cjs
       - name: Render and inspect wallpaper PNG
         run: |
           python3 scripts/wallpaper.py /tmp/klaus-os-11.png
