@@ -3,7 +3,7 @@
 const assert=require("node:assert/strict");
 const {parseBatch}=require("./clipboard-bridge-ui.js");
 const prompts=Array.from({length:25},(_,i)=>"PROMPT "+String(i+1).padStart(2,"0")+
-  " — HISTORIA "+(i+1)+"\nCreate complete 15s 9:16 video. "+ "No subtitles. ".repeat(10));
+  " — HISTORIA "+(i+1)+"\nCreate complete 15s 9:16 video. "+ "No subtitles. ".repeat(10)).map(x=>x.trim());
 assert.deepEqual(parseBatch(JSON.stringify({prompts})),prompts);
 assert.deepEqual(parseBatch(JSON.stringify(prompts)),prompts);
 assert.deepEqual(parseBatch(prompts.join("\n\n")),prompts);
