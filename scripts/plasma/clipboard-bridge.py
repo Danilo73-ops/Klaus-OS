@@ -107,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             result = subprocess.run(
                 ["xclip", "-selection", "clipboard", "-in"],
-                input=raw, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                input=raw, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 env=env, timeout=8, check=False
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
