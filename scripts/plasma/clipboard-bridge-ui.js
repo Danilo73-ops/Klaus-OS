@@ -6,50 +6,74 @@
 
   function asText(item) {
     if (typeof item === "string") return item;
-    if (item && typeof item === "object") return item.prompt || item.text || item.content || "";
+    if (!item || typeof item !== "object") return "";
+    for (const key of ["prompt", "text", "content", "description", "script", "body"]) {
+      const value = item[key];
+      if (typeof value === "string" && value.trim()) return value;
+      if (value && typeof value === "object") {
+        const nested = asText(value);
+        if (nested) return nested;
+      }
+    }
     return "";
   }
 
-  function parseBatch(input) {
-    const source = String(input || "").replace(/\r\n?/g, "\n").replace(/^\uFEFF/, "").trim();
+  function parseBatch(input, splitMode = "auto") {
+    const source = String(input ?? "").replace(/\r\n?/g,"\n").replace(/^\uFEFF/,"").trim();
     if (!source) throw Error("Arquivo ou texto vazio.");
-    let items = null;
+    let items;
+    let parsed;
     try {
-      const data = JSON.parse(source);
-      const list = Array.isArray(data) ? data : data && (data.prompts || data.items || data.jobs || data.queue);
-      if (!Array.isArray(list)) throw Error("JSON sem lista de prompts.");
-      items = list.map(asText).map(x => String(x).trim()).filter(Boolean);
+      parsed = JSON.parse(source);
     } catch (error) {
-      if (!(error instanceof SyntaxError)) throw error;
+      if (/^\s*[\[{]/.test(source)) throw Error("JSON inválido. Confira vírgulas e aspas ou importe um TXT.");
     }
-    if (!items) {
-      // First try anchored titles. Fall back to collapsed headings for an Android
-      // clipboard that has flattened line breaks. Keep all original body text.
-      let matches = [...source.matchAll(/^\s*(?:PROMPT|V[IÍ]DEO)\s+(\d{1,2})\s*[-–—:.]/gim)];
+    if (parsed !== undefined) {
+      let list = Array.isArray(parsed) ? parsed : null;
+      if (!list && parsed && typeof parsed === "object") {
+        for (const key of ["prompts","items","jobs","queue","videos","scenes","data"]) {
+          if (Array.isArray(parsed[key])) { list = parsed[key]; break; }
+          if (parsed[key] && Array.isArray(parsed[key].prompts)) { list = parsed[key].prompts; break; }
+        }
+      }
+      if (!list) throw Error("JSON sem lista. Use um array ou {\"prompts\":[...] }.");
+      items = list.map(asText).map(x => String(x).trim()).filter(Boolean);
+      if (items.length !== list.length) throw Error("Um ou mais itens do JSON não possuem texto de prompt.");
+    } else if (splitMode === "blanks") {
+      items = source.split(/\n[ \t]*\n+/).map(x=>x.trim()).filter(Boolean);
+    } else if (splitMode === "lines") {
+      items = source.split("\n").map(x=>x.trim()).filter(Boolean);
+    } else {
+      const kind = "(?:PROMPT|V[IÍ]DEO|CENA)";
+      const heading = new RegExp("^[ \\t]*(?:#{1,6}[ \\t]*)?(?:\\*{1,2}[ \\t]*)?(?:🎬[ \\t]*)?(?:(?:"+kind+")[ \\t]*#?[ \\t]*(\\d{1,3})|(\\d{1,3})[ \\t]*[.)-][ \\t]*(?:"+kind+"))(?=[ \\t]|[-—–:.|*]|$)", "gim");
+      let matches = [...source.matchAll(heading)];
       if (matches.length < 2) {
-        const any = [...source.matchAll(/\b(?:PROMPT|V[IÍ]DEO)\s+(\d{1,2})\s*[-–—:.]/gi)];
-        if (any.length > matches.length) matches = any;
+        const flattened = new RegExp("\\b(?:"+kind+")[ \\t]*#?[ \\t]*(\\d{1,3})(?=[ \\t]*[-—–:.|])", "gi");
+        const candidates = [...source.matchAll(flattened)];
+        if (candidates.length > matches.length) matches = candidates;
       }
       if (matches.length) {
-        const before = source.slice(0, matches[0].index).trim();
-        if (before.length > 80) throw Error("Texto inesperado antes do primeiro PROMPT.");
-        items = matches.map((m,i) => source.slice(m.index, matches[i+1]?.index ?? source.length).trim());
-      } else if (/^\s*(?:---+|===+)\s*$/m.test(source)) {
-        items = source.split(/^\s*(?:---+|===+)\s*$/gm).map(x => x.trim()).filter(Boolean);
+        const leading = source.slice(0,matches[0].index).trim();
+        if (leading.length > 200) throw Error("Há texto longo antes do primeiro PROMPT. Revise o início do lote.");
+        items = matches.map((match,i)=>
+          source.slice(match.index, matches[i+1]?.index ?? source.length).trim()
+            .replace(/(?:\n[ \t]*(?:---+|===+|\*\*\*+)[ \t]*)+$/,"").trim());
+      } else if (/^[ \t]*(?:---+|===+|\*\*\*+)[ \t]*$/m.test(source)) {
+        items = source.split(/^[ \t]*(?:---+|===+|\*\*\*+)[ \t]*$/gm).map(x=>x.trim()).filter(Boolean);
       } else {
         items = [source];
       }
     }
     if (!items.length || items.length > MAX_ITEMS)
-      throw Error("Esperava de 1 a 25 prompts. Detectei " + items.length + ".");
-    const numbers = items.map(t => {
-      const m = /^\s*PROMPT\s+(\d{1,2})\s*[-–—:.]/i.exec(t);
-      return m ? Number(m[1]) : null;
+      throw Error("Esperava de 1 a 25 prompts. Detectei "+items.length+".");
+    const numbered = items.map(t => {
+      const match = /^\s*(?:#{1,6}\s*)?(?:\*{1,2}\s*)?(?:🎬\s*)?(?:PROMPT|V[IÍ]DEO|CENA)\s*#?\s*(\d{1,3})(?=[ \t]|[-—–:.|*]|$)/i.exec(t);
+      return match ? Number(match[1]) : null;
     });
-    if (numbers.every(n => n !== null)) {
-      const broken = numbers.findIndex((n,i) => i && n !== numbers[i-1]+1);
-      if (broken >= 0) throw Error("Numeração fora de ordem: " + numbers[broken-1] + " → " + numbers[broken] + ".");
-      if (new Set(numbers).size !== numbers.length) throw Error("Há títulos repetidos.");
+    if (numbered.length > 1 && numbered.every(n=>n!==null)) {
+      for (let i=1;i<numbered.length;i++) {
+        if (numbered[i] <= numbered[i-1]) throw Error("Numeração repetida ou fora de ordem: "+numbered[i-1]+" → "+numbered[i]+".");
+      }
     }
     return items;
   }
@@ -59,6 +83,22 @@
 
   const el = id => document.getElementById(id);
   const box=el("prompt"), notice=el("notice"), preview=el("queueStatus");
+
+  // Optional import modes keep multi-paragraph prompts intact unless the user opts in.
+  const modeLabel = document.createElement("label");
+  modeLabel.textContent = "Como separar os prompts: ";
+  modeLabel.style.cssText = "display:block;margin:10px 0;color:#bfe7ff;font-size:14px";
+  const mode = document.createElement("select");
+  mode.id = "batchSplitMode";
+  mode.style.cssText = "max-width:100%;padding:10px;background:#091723;color:#fff;border:1px solid #496783;border-radius:8px";
+  [["auto","Automático (títulos PROMPT, JSON ou ---)"],["blanks","Separar por linhas vazias"],["lines","Um prompt por linha"]].forEach(([value,label])=>{
+    const option=document.createElement("option");
+    option.value=value;
+    option.textContent=label;
+    mode.appendChild(option);
+  });
+  modeLabel.appendChild(mode);
+  el("batchText").insertAdjacentElement("afterend",modeLabel);
   let queue=[], index=0, delivered=[];
 
   function save() {
@@ -101,8 +141,8 @@
     } catch(error) {notice.textContent="❌ "+error.message;}
   };
 
-  async function loadBatch(raw, origin) {
-    const items=parseBatch(raw);
+  function loadBatch(raw, origin) {
+    const items=parseBatch(raw, mode.value);
     if(queue.length && !confirm("Substituir o lote local de "+queue.length+
       " prompts por "+items.length+" prompts de "+origin+"? Nenhum arquivo do Termux será apagado.")) return;
     queue=items;
@@ -110,7 +150,7 @@
     delivered=items.map(()=>false);
     save();
     render();
-    notice.textContent="✅ "+items.length+" prompts carregados! Clique em Enviar atual e depois Ctrl+V no Firefox.";
+    notice.textContent="✅ "+items.length+" prompts carregados! Clique em Enviar atual e depois Ctrl+V no Firefox."+(items.length===1 && raw.length>700 ? " Se esperava vários, escolha outro modo de separação e carregue novamente." : "");
   }
 
   el("loadBatch").onclick=()=>{
