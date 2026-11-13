@@ -26,7 +26,7 @@
     try {
       parsed = JSON.parse(source);
     } catch (error) {
-      if (/^\s*[\[{]/.test(source)) throw Error("JSON inválido. Confira vírgulas e aspas ou importe um TXT.");
+      if (/^\s*\{|^\s*\[\s*[{"]/.test(source)) throw Error("JSON inválido. Confira vírgulas e aspas ou importe um TXT.");
     }
     if (parsed !== undefined) {
       let list = Array.isArray(parsed) ? parsed : null;
@@ -72,7 +72,7 @@
     });
     if (numbered.length > 1 && numbered.every(n=>n!==null)) {
       for (let i=1;i<numbered.length;i++) {
-        if (numbered[i] <= numbered[i-1]) throw Error("Numeração repetida ou fora de ordem: "+numbered[i-1]+" → "+numbered[i]+".");
+        if (numbered[i] !== numbered[i-1]+1) throw Error("Numeração fora de ordem: "+numbered[i-1]+" → "+numbered[i]+".");
       }
     }
     return items;
