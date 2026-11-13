@@ -210,7 +210,7 @@ const el = id=>document.getElementById(id);
     const response=await fetch("/clipboard",{method:"POST",headers:{"Content-Type":"text/plain; charset=utf-8"},body:text});
     const result=await response.json();
     if(!response.ok)throw Error(result.error||"Falha na transferência.");
-    if(result.characters!==text.length)throw Error("Contagem de caracteres divergente, confira o clipboard.");
+    if(result.characters!==Array.from(text).length)throw Error("Contagem de caracteres divergente, confira o clipboard.");
     return result;
   }
   el("send").onclick=async()=>{
